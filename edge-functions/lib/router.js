@@ -1,8 +1,8 @@
 /**
- * node-functions/lib/router.js
- * EdgeOne Node Functions 后端路由（鉴权 + 数据接口 + 站点/域名白名单）
+ * edge-functions/lib/router.js
+ * EdgeOne Edge Functions 后端路由（鉴权 + 数据接口 + 站点/域名白名单）
  *
- * - 输入：标准 Web API Request + env（Node Functions 环境变量）
+ * - 输入：标准 Web API Request + env（Edge Functions 环境变量）
  * - 输出：标准 Response；数据源为腾讯云 EdgeOne 开放接口（TC3 签名直连）
  * - 站点限制：ALLOWED_ZONE_IDS（空 = 不限），未授权站点请求返回 403
  */
@@ -289,7 +289,7 @@ async function handlePages(env, url) {
 
 /**
  * 统一请求入口：CORS + 鉴权 + 路由
- * 由 node-functions/api/[[default]].js 的 onRequestGet / onRequestPost / onRequestOptions 调用
+ * 由 edge-functions/api/[[default]].js 的 onRequestGet / onRequestPost / onRequestOptions 调用
  */
 export async function apiHandler(request, env = {}) {
   const c = cfg(env);

@@ -1,6 +1,6 @@
 # EdgeOne 监控大屏
 
-基于腾讯云 EdgeOne 的实时监控大屏。前端 Vue3 + Vite + NaiveUI + ECharts，后端按 **EdgeOne Node Functions 规范**编写，直连 EdgeOne 开放接口（TC3 签名），仅展示真实数据。
+基于腾讯云 EdgeOne 的实时监控大屏。前端 Vue3 + Vite + NaiveUI + ECharts，后端按 **EdgeOne Edge Functions 规范**编写，直连 EdgeOne 开放接口（TC3 签名），仅展示真实数据。
 
 ## 功能
 
@@ -29,7 +29,7 @@
 ```bash
 cp .env.example .env     # 填入 ADMIN_PASSWORD、JWT_SECRET、SECRET_ID、SECRET_KEY
 pnpm install
-pnpm dev                 # http://127.0.0.1:5173（/api 走本地 Node Functions 模拟）
+pnpm dev                 # http://127.0.0.1:5173（/api 走本地 Edge Functions 模拟）
 pnpm build && pnpm serve # 单端口预览 http://127.0.0.1:8088
 ```
 
@@ -38,13 +38,13 @@ pnpm build && pnpm serve # 单端口预览 http://127.0.0.1:8088
 1. `pnpm build` 构建到 `dist/`
 2. 仓库推送到 GitHub 后，在 EdgeOne Pages「导入 Git 仓库」创建项目
 3. 项目设置：构建命令 `pnpm build`，输出目录 `dist`
-4. 配置上表环境变量后提交，触发自动构建；`/api/**` 由 `node-functions/` 处理，其余为静态站点
+4. 配置上表环境变量后提交，触发自动构建；`/api/**` 由 `edge-functions/` 处理，其余为静态站点
 
 ## 目录
 
 ```
-node-functions/api/[[default]].js  Node Functions 入口（onRequestGet/Post/Options）
-node-functions/lib/                路由 / JWT / TC3 签名 / EdgeOne 接口封装 / 站点白名单
+edge-functions/api/[[default]].js  Edge Functions 入口（onRequestGet/Post/Options）
+edge-functions/lib/                路由 / JWT / TC3 签名 / EdgeOne 接口封装 / 站点白名单
 src/                               前端源码
 public/                            静态资源（logo、ECharts 地图 geojson）
 server/ scripts/                   本地运行

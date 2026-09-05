@@ -1,5 +1,5 @@
 /**
-* node-functions/lib/teo.js —— 腾讯云 EdgeOne 数据接口封装（TC3 签名直连）
+* edge-functions/lib/teo.js —— 腾讯云 EdgeOne 数据接口封装（TC3 签名直连）
  * 基于 fetch + TC3 签名直连 EdgeOne 开放接口，可运行于边缘函数 / Pages Function / Node。
  *
  * 说明：真实模式需要环境变量 SECRET_ID / SECRET_KEY（仅需 EdgeOne 只读权限）。

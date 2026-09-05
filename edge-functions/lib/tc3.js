@@ -1,7 +1,7 @@
 /**
- * node-functions/lib/tc3.js
+ * edge-functions/lib/tc3.js
  * 腾讯云 API 3.0 (TC3-HMAC-SHA256) 签名客户端，基于 WebCrypto + fetch，零第三方依赖，
- * 同时可在 Node Functions / 边缘函数 / Node 环境运行。
+ * 同时可在 Edge Functions / 边缘函数 / Node 环境运行。
  *
  * 签名方式与腾讯云官方 SDK (sign3) 保持一致：
  *   - HTTP POST，参数放 JSON body
@@ -111,10 +111,13 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
     now: opts.now
   });
 
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = controller && setTimeout(() => controller.abort(), opts.timeout || 15000);
+  // Edge Functions (V8) 运行时更建议用 AbortSignal.timeout，避免依赖定时器
+  const timeoutMs = opts.timeout || 15000;
+  const timeoutSignal =
+    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+      ? AbortSignal.timeout(timeoutMs)
+      : null;
 
-  try {
     const res = await fetch(`https://${host}${apiPath}`, {
       method,
       headers: {
@@ -122,7 +125,7 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
         Authorization: authorization
       },
       body: payload,
-      signal: controller ? controller.signal : undefined
+      signal: timeoutSignal || undefined
     });
     const text = await res.text();
     const data = safeJsonParse(text, {});
@@ -135,7 +138,4 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
       throw err;
     }
     return data.Response || data;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
