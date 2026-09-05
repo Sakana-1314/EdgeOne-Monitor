@@ -21,12 +21,6 @@
           @update:value="onMenu"
         />
       </div>
-      <div class="sider-foot" v-if="!collapsed">
-        <n-tag size="small" :bordered="false" :type="app.configured ? 'success' : 'warning'" :title="app.configured ? '' : app.credentialHint">
-          {{ app.configured ? '已接入 EdgeOne' : '未配置凭据' }}
-        </n-tag>
-        <n-tag size="small" :bordered="false" type="info">v{{ app.version || '2.0' }}</n-tag>
-      </div>
     </aside>
 
     <!-- 移动端抽屉导航 -->
@@ -160,9 +154,6 @@
         </router-view>
       </main>
 
-      <footer class="app-footer">
-        {{ app.siteName }} · 前端 Vue3 + NaiveUI + ECharts · 后端 Node Functions (EdgeOne)
-      </footer>
     </div>
   </div>
 </template>
@@ -402,13 +393,6 @@ watch(
 .sider.collapsed .sider-menu {
   padding: 0;
 }
-.sider-foot {
-  padding: 10px 12px;
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid var(--eo-border);
-}
-
 /* 主区域 */
 .main-area {
   flex: 1;
@@ -502,14 +486,6 @@ watch(
   font-size: 13px;
   color: var(--eo-text-3);
 }
-.app-footer {
-  padding: 10px 18px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--eo-text-3);
-  border-top: 1px solid var(--eo-border);
-}
-
 .drawer-brand {
   display: flex;
   align-items: center;
