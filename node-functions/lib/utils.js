@@ -38,11 +38,12 @@ export async function sha256Hex(data) {
   return toHex(digest);
 }
 
-/** HMAC-SHA256 (key 为 utf8 字符串, data 为字符串) -> Uint8Array */
+/** HMAC-SHA256 (key 可为 utf8 字符串或 Uint8Array 原始字节, data 为字符串) -> Uint8Array */
 export async function hmacSha256(key, data) {
+  const keyBytes = typeof key === 'string' ? encoder.encode(key) : key;
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(key),
+    keyBytes,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']

@@ -1,26 +1,16 @@
 /**
- * functions/lib/tc3.js
+ * node-functions/lib/tc3.js
  * 腾讯云 API 3.0 (TC3-HMAC-SHA256) 签名客户端，基于 WebCrypto + fetch，零第三方依赖，
- * 同时可在 边缘函数 / Pages Function / Node 环境运行。
+ * 同时可在 Node Functions / 边缘函数 / Node 环境运行。
  *
+ * 签名方式与腾讯云官方 SDK (sign3) 保持一致：
+ *   - HTTP POST，参数放 JSON body
+ *   - 仅对 content-type 与 host 两个头签名（其余 X-TC-* 头不参与签名）
+ *   - X-TC-Action 需保留原始大小写（如 DescribeZones），小写会被服务端拒绝
  * 参考: https://cloud.tencent.com/document/product/1278/85305
  */
 
-import { sha256Hex, hmacSha256Hex, safeJsonParse } from './utils.js';
-
-function canonicalHeaders(headerMap) {
-  return Object.keys(headerMap)
-    .sort()
-    .map((k) => `${k.toLowerCase()}:${headerMap[k].trim()}\n`)
-    .join('');
-}
-
-function signedHeaders(headerMap) {
-  return Object.keys(headerMap)
-    .sort()
-    .map((k) => k.toLowerCase())
-    .join(';');
-}
+import { sha256Hex, hmacSha256, toHex, safeJsonParse } from './utils.js';
 
 /**
  * 计算 TC3 签名（可独立测试）。返回签名所需的各部分。
@@ -42,22 +32,28 @@ export async function buildTC3({
   const date = now.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
   const payload = JSON.stringify(params);
 
+  const contentType = 'application/json';
   const headerMap = {
-    'content-type': 'application/json; charset=utf-8',
+    'content-type': contentType,
     host,
-    'x-tc-action': action.toLowerCase(),
+    // 注意：action 需保留原始大小写（如 DescribeZones），小写会被服务端拒绝
+    'x-tc-action': action,
     'x-tc-timestamp': String(timestamp),
     'x-tc-version': version,
     'x-tc-region': region
   };
+
+  // 仅对 content-type 与 host 签名（与官方 SDK 一致）
+  const signedHeaderNames = 'content-type;host';
+  const signedHeaderLines = `content-type:${contentType}\nhost:${host}\n`;
 
   const hashedPayload = await sha256Hex(payload);
   const canonicalRequest = [
     method,
     path,
     '', // query 为空（参数放在 body）
-    canonicalHeaders(headerMap),
-    signedHeaders(headerMap),
+    signedHeaderLines,
+    signedHeaderNames,
     hashedPayload
   ].join('\n');
 
@@ -68,14 +64,17 @@ export async function buildTC3({
     await sha256Hex(canonicalRequest)
   ].join('\n');
 
-  const secretDate = await hmacSha256Hex(`TC3${secretKey}`, date);
-  const secretService = await hmacSha256Hex(secretDate, service);
-  const secretSigning = await hmacSha256Hex(secretService, 'tc3_request');
-  const signature = await hmacSha256Hex(secretSigning, stringToSign);
+  // 注意：链式 HMAC 需以「上一级 HMAC 的原始字节」作为下一级密钥（与官方 SDK 一致），
+  // 不能用其十六进制字符串，否则签名会被服务端拒绝。
+  const secretDate = await hmacSha256(`TC3${secretKey}`, date);
+  const secretService = await hmacSha256(secretDate, service);
+  const secretSigning = await hmacSha256(secretService, 'tc3_request');
+  const signature = await hmacSha256(secretSigning, stringToSign);
+  const signatureHex = toHex(signature);
 
   const authorization =
     `TC3-HMAC-SHA256 Credential=${secretId}/${date}/${service}/tc3_request, ` +
-    `SignedHeaders=${signedHeaders(headerMap)}, Signature=${signature}`;
+    `SignedHeaders=${signedHeaderNames}, Signature=${signatureHex}`;
 
   return { timestamp, date, authorization, payload, headerMap };
 }
@@ -98,6 +97,8 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
   }
 
   const host = (env.TEO_ENDPOINT || 'teo.tencentcloudapi.com').replace(/^https?:\/\//, '');
+  const method = 'POST';
+  const apiPath = opts.path || '/';
   const { authorization, headerMap, payload } = await buildTC3({
     secretId,
     secretKey,
@@ -106,7 +107,7 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
     version: opts.version,
     host,
     region: env.TEO_REGION,
-    path: opts.path,
+    path: apiPath,
     now: opts.now
   });
 
@@ -114,7 +115,7 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
   const timer = controller && setTimeout(() => controller.abort(), opts.timeout || 15000);
 
   try {
-    const res = await fetch(`https://${host}${path}`, {
+    const res = await fetch(`https://${host}${apiPath}`, {
       method,
       headers: {
         ...headerMap,

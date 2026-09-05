@@ -130,23 +130,28 @@ export async function fetchMetrics(env, ids, opts) {
   return results;
 }
 
-/** 站点列表 */
-export async function listZones(env) {
+/** 站点列表（allowed 为空数组/未传 = 全部；非空时仅返回白名单内站点） */
+export async function listZones(env, allowed = null) {
   const res = await requestTC3(env, 'DescribeZones', {});
   const zones = Array.isArray(res?.Zones) ? res.Zones : [];
-  return zones
+  let list = zones
     .map((z) => ({
       id: z.ZoneId,
       name: z.ZoneName === 'default-pages-zone' ? `${z.ZoneName} (Pages站点)` : z.ZoneName,
       area: z.ZoneType || z.Area || ''
     }))
     .sort((a, b) => (a.name === 'default-pages-zone (Pages站点)' ? -1 : a.name.localeCompare(b.name)));
+  if (allowed && allowed.length) {
+    const set = new Set(allowed);
+    list = list.filter((z) => set.has(z.id));
+  }
+  return list;
 }
 
-async function discoverPagesZone(env, zoneId) {
+async function discoverPagesZone(env, zoneId, allowed = null) {
   if (zoneId && zoneId !== '*') return zoneId;
   try {
-    const zones = await listZones(env);
+    const zones = await listZones(env, allowed);
     const pages = zones.find((z) => z.name.includes('Pages'));
     if (pages) return pages.id;
     if (zones.length) return zones[0].id;
@@ -156,9 +161,9 @@ async function discoverPagesZone(env, zoneId) {
   return zoneId;
 }
 
-async function callPagesInterface(env, zoneId, iface, payload) {
-  const target = await discoverPagesZone(env, zoneId);
-  if (!target) throw new Error('未找到 Pages 站点 (default-pages-zone)，请指定 zoneId');
+async function callPagesInterface(env, zoneId, iface, payload, allowed = null) {
+  const target = await discoverPagesZone(env, zoneId, allowed);
+  if (!target) throw new Error('未找到可用的 Pages 站点，请检查 ALLOWED_ZONE_IDS 或指定 zoneId');
   const res = await requestTC3(env, 'DescribePagesResources', {
     ZoneId: target,
     Interface: iface,
@@ -188,9 +193,9 @@ const findNum = (...keys) => {
 };
 
 /** Pages 构建统计 */
-export async function fetchPagesBuild(env, zoneId) {
+export async function fetchPagesBuild(env, zoneId, allowed = null) {
   const res = parsePagesResult(
-    await callPagesInterface(env, zoneId, 'pages:DescribePagesDeploymentUsage', '{}')
+    await callPagesInterface(env, zoneId, 'pages:DescribePagesDeploymentUsage', '{}', allowed)
   );
   const p = res.parsedResult || res;
   // 尽力解析（真实返回结构以腾讯云为准，容错处理）
@@ -203,13 +208,13 @@ export async function fetchPagesBuild(env, zoneId) {
 }
 
 /** Pages Cloud Functions 请求趋势 */
-export async function fetchPagesCfRequests(env, zoneId, { start, end } = {}) {
-  const target = await discoverPagesZone(env, zoneId);
+export async function fetchPagesCfRequests(env, zoneId, { start, end } = {}, allowed = null) {
+  const target = await discoverPagesZone(env, zoneId, allowed);
   const payload = { ZoneId: target, Interval: 'hour' };
   if (start) payload.StartTime = start;
   if (end) payload.EndTime = end;
   const res = parsePagesResult(
-    await callPagesInterface(env, zoneId, 'pages:DescribePagesFunctionsRequestDataByZone', payload)
+    await callPagesInterface(env, zoneId, 'pages:DescribePagesFunctionsRequestDataByZone', payload, allowed)
   );
   const p = res.parsedResult || res;
   const list = Array.isArray(p) ? p : p.Data || p.data || p.list || [];
@@ -220,9 +225,9 @@ export async function fetchPagesCfRequests(env, zoneId, { start, end } = {}) {
 }
 
 /** Pages Cloud Functions 月度汇总 */
-export async function fetchPagesCfMonthly(env, zoneId) {
+export async function fetchPagesCfMonthly(env, zoneId, allowed = null) {
   const res = parsePagesResult(
-    await callPagesInterface(env, zoneId, 'pages:DescribeHistoryCloudFunctionStats', '{}')
+    await callPagesInterface(env, zoneId, 'pages:DescribeHistoryCloudFunctionStats', '{}', allowed)
   );
   const p = res.parsedResult || res;
   return {

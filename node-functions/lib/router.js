@@ -1,19 +1,20 @@
 /**
- * functions/lib/router.js
- * EdgeOne Pages Functions 后端路由（鉴权 + 数据接口）
+ * node-functions/lib/router.js
+ * EdgeOne Node Functions 后端路由（鉴权 + 数据接口 + 站点/域名白名单）
  *
- * - 输入：标准 Web API Request + env（Pages 环境变量）
- * - 输出：标准 Response
- * - 仅使用 WebCrypto + fetch，运行于边缘函数（V8）运行时
- * - 数据源为腾讯云 EdgeOne 开放接口（TC3 签名直连），无演示/模拟模式
+ * - 输入：标准 Web API Request + env（Node Functions 环境变量）
+ * - 输出：标准 Response；数据源为腾讯云 EdgeOne 开放接口（TC3 签名直连）
+ * - 站点限制：ALLOWED_ZONE_IDS（空 = 不限），未授权站点请求返回 403
+ * - 域名限制：ALLOWED_DOMAINS（空 = 不限），domain / referers 等带主机名维度按白名单过滤
  */
 
 import { signToken, verifyToken } from './jwt.js';
 import { safeEqualStr, readJsonBody, formatUTCDate } from './utils.js';
 import { isValidMetric, normalizeTime, normalizeInterval, KIND } from './registry.js';
+import { allowedZones, allowedDomains, filterHostRows } from './allowlist.js';
 import * as teo from './teo.js';
 
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 const DEFAULT_TTL_DAYS = 7;
 const CRED_ENV_HINT = '请在 EdgeOne Pages 项目「环境变量」中配置 SECRET_ID / SECRET_KEY（需 QcloudTEOReadOnlyaccess 只读权限）';
 
@@ -192,10 +193,38 @@ function noCredential() {
   return json({ code: 503, message: '未配置腾讯云凭据：' + CRED_ENV_HINT, hint: CRED_ENV_HINT }, 503);
 }
 
+function forbiddenZone(zoneId) {
+  return json(
+    { code: 403, message: `站点 ${zoneId} 不在 ALLOWED_ZONE_IDS 白名单内`, hint: '请检查 ALLOWED_ZONE_IDS 环境变量' },
+    403
+  );
+}
+
+/**
+ * 站点白名单强制解析：
+ * - 白名单为空 -> 维持原请求（'*' 表示全账号）
+ * - 白名单非空 -> '*' 展开为白名单站点；显式站点必须命中白名单，否则返回错误
+ * @returns {{ok:boolean, zones?:string[], error?:Response, forbidden?:string}}
+ */
+function authorizeZones(env, requestedZoneIds) {
+  const allowed = allowedZones(env);
+  if (!allowed.length) {
+    const hasStar = requestedZoneIds.some((z) => z === '*');
+    return { ok: true, zones: hasStar ? ['*'] : [...requestedZoneIds] };
+  }
+  const out = [];
+  for (const z of requestedZoneIds) {
+    if (z === '*') out.push(...allowed);
+    else if (allowed.includes(z)) out.push(z);
+    else return { ok: false, forbidden: z, zones: [] };
+  }
+  return { ok: true, zones: [...new Set(out)] };
+}
+
 async function handleZones(env) {
   if (!cfg(env).configured) return noCredential();
   try {
-    const zones = await teo.listZones(env);
+    const zones = await teo.listZones(env, allowedZones(env));
     return json({ code: 0, data: { zones } });
   } catch (e) {
     return json({ code: 502, message: e.message || '站点列表获取失败', detail: String(e) }, 502);
@@ -213,10 +242,27 @@ async function handleMetrics(env, url) {
   const win = parseWindow(url);
   if (win.error) return json({ code: 400, message: win.error }, 400);
 
+  // 站点白名单强制
+  const authz = authorizeZones(env, win.zoneIds);
+  if (!authz.ok) return forbiddenZone(authz.forbidden);
+  win.zoneIds = authz.zones;
+
   const compare = ['1', 'true', 'yes'].includes((url.searchParams.get('compare') || '').toLowerCase());
+  const domAllowed = allowedDomains(env);
   try {
     let results = await teo.fetchMetrics(env, names, win);
     results = await withCompare(env, results, win, compare);
+
+    // 域名白名单：过滤带主机名维度（domain / referers）的 TOP 结果
+    if (domAllowed.length) {
+      for (const id of Object.keys(results)) {
+        const m = results[id];
+        if (!m || m.kind !== KIND.TOP) continue;
+        const dim = id.endsWith('_domain') ? 'domain' : id.endsWith('_referers') ? 'referers' : null;
+        if (dim && Array.isArray(m.data)) m.data = filterHostRows(m.data, dim, domAllowed);
+      }
+    }
+
     return json({
       code: 0,
       data: {
@@ -233,18 +279,24 @@ async function handlePages(env, url) {
   if (!cfg(env).configured) return noCredential();
   const which = url.pathname.split('/').pop();
   const zoneId = url.searchParams.get('zoneId') || '';
+  const allowed = allowedZones(env);
+
+  // 站点白名单强制（显式指定站点时必须命中白名单）
+  if (zoneId && zoneId !== '*' && allowed.length && !allowed.includes(zoneId)) {
+    return forbiddenZone(zoneId);
+  }
   try {
     if (which === 'build-count') {
-      const r = await teo.fetchPagesBuild(env, zoneId);
+      const r = await teo.fetchPagesBuild(env, zoneId, allowed);
       return json({ code: 0, data: r });
     }
     if (which === 'cf-requests') {
       const win = parseWindow(url);
-      const r = await teo.fetchPagesCfRequests(env, zoneId, { start: win.start, end: win.end });
+      const r = await teo.fetchPagesCfRequests(env, zoneId, { start: win.start, end: win.end }, allowed);
       return json({ code: 0, data: r });
     }
     if (which === 'cf-monthly') {
-      const r = await teo.fetchPagesCfMonthly(env, zoneId);
+      const r = await teo.fetchPagesCfMonthly(env, zoneId, allowed);
       return json({ code: 0, data: r });
     }
   } catch (e) {
@@ -255,7 +307,7 @@ async function handlePages(env, url) {
 
 /**
  * 统一请求入口：CORS + 鉴权 + 路由
- * 由 functions/api/[[default]].js 的 onRequestGet / onRequestPost / onRequestOptions 调用
+ * 由 node-functions/api/[[default]].js 的 onRequestGet / onRequestPost / onRequestOptions 调用
  */
 export async function apiHandler(request, env = {}) {
   const c = cfg(env);

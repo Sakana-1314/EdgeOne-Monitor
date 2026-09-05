@@ -1,8 +1,8 @@
 /**
  * server/index.mjs —— 本地运行 / 预览 服务（模拟 EdgeOne `pages dev`）
  *
- * 与线上一致地调用 functions/ 下的官方 Pages Function 入口：
- *   - /api/*           由 functions/api/[[default]].js 的 onRequestGet/Post/Options 处理
+ * 与线上一致地调用 node-functions/ 下的官方 Node Functions 入口：
+ *   - /api/*           由 node-functions/api/[[default]].js 的 onRequestGet/Post/Options 处理
  *   - 其余路径         若存在 dist/ 则作为静态站点返回（用于生产预览）
  *
  * 用法：
@@ -14,7 +14,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { onRequestGet, onRequestPost, onRequestOptions } from '../functions/api/[[default]].js';
+import { onRequestGet, onRequestPost, onRequestOptions } from '../node-functions/api/[[default]].js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');

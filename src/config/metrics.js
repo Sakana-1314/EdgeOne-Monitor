@@ -1,6 +1,6 @@
 /**
  * src/config/metrics.js
- * 指标展示元数据（标签/颜色/单位），与 functions/lib/registry.js 的指标 id 一一对应。
+ * 指标展示元数据（标签/颜色/单位），与 node-functions/lib/registry.js 的指标 id 一一对应。
  * unit: bytes | bps | count | ms
  * kpi:  KPI 卡片取 sum（总量）还是 avg（均值）
  */
