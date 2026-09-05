@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+.vite/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+key.txt
+
+# logs / misc
+*.log
+.DS_Store
+Thumbs.db
+
+# test artifacts
+/screenshots/
+.playwright/

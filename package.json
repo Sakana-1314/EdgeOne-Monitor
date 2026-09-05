@@ -1,0 +1,30 @@
+{
+  "name": "edgeone-monitor-dashboard",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "EdgeOne 监控大屏 (Vue3 + NaiveUI + 边缘函数后端)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "preview": "node server/index.mjs --serve --port 8088",
+    "serve": "node server/index.mjs --serve --port 8088",
+    "start": "node server/index.mjs --serve --port 8088"
+  },
+  "dependencies": {
+    "@vicons/ionicons5": "^0.13.0",
+    "echarts": "^5.5.1",
+    "naive-ui": "^2.40.1",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "playwright-core": "^1.48.2",
+    "vite": "^5.4.10"
+  }
+}
