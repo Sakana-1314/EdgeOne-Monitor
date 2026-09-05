@@ -102,7 +102,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
 import { GlobeOutline, LocationOutline } from '@vicons/ionicons5';
 import Segmented from '../components/Segmented.vue';
@@ -110,9 +110,10 @@ import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import TopRankList from '../components/TopRankList.vue';
 import GeoMap from '../components/GeoMap.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { resolveCountry, resolveProvince, toCountryMapName } from '../config/geo.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { resolveCountry, resolveProvince, toCountryMapName } from '../config/geo';
+import type { TopDatum } from '../types/model';
 
 const app = useAppStore();
 const IDS = [
@@ -123,6 +124,12 @@ const IDS = [
 ];
 const { data, loading } = useMetrics(IDS, { compare: false });
 
+/** 排行/地图数据行 */
+interface RankRow {
+  name: string;
+  value: number;
+}
+
 /* 地图切换：world-request / world-flux / china-province */
 const mapOptions = [
   { label: '全球 · 请求', value: 'world-req' },
@@ -130,12 +137,15 @@ const mapOptions = [
   { label: '中国 · 省份', value: 'china-req' }
 ];
 const mapKey = ref('world-req');
-const mapGeo = computed(() => (mapKey.value.startsWith('china') ? 'china' : 'world'));
-const mapUnit = computed(() => (mapKey.value.endsWith('flux') ? 'bytes' : 'count'));
+const mapGeo = computed<'world' | 'china'>(() => (mapKey.value.startsWith('china') ? 'china' : 'world'));
+const mapUnit = computed<'bytes' | 'count'>(() => (mapKey.value.endsWith('flux') ? 'bytes' : 'count'));
 
-const countryData = (flux) => data[flux ? 'l7Flow_outFlux_country' : 'l7Flow_request_country'] || { data: [] };
-const mapRows = computed(() => {
-  const arr = countryData(mapKey.value.endsWith('flux')).data || [];
+function topRows(flux: boolean): TopDatum[] {
+  const m = data[flux ? 'l7Flow_outFlux_country' : 'l7Flow_request_country'];
+  return m && m.kind === 'top' ? m.data : [];
+}
+const mapRows = computed<RankRow[]>(() => {
+  const arr = topRows(mapKey.value.endsWith('flux'));
   if (mapKey.value.startsWith('china')) {
     return arr
       .map((r) => ({ name: resolveProvince(r.key), value: r.value }))
@@ -146,48 +156,47 @@ const mapRows = computed(() => {
     .map((r) => ({ name: toCountryMapName(r.key), value: r.value }));
 });
 
-const mapTitle = computed(() => {
+const mapTitle = computed<string>(() => {
   const m = mapOptions.find((o) => o.value === mapKey.value);
-  const sub = mapKey.value.startsWith('china') ? '省份请求数地理分布' : mapKey.value.endsWith('flux') ? '响应流量地理分布' : '请求数地理分布';
   return `${m?.label || ''}分布`;
 });
 
 /* 排行列表 */
-function rowsOf(id, nameFn) {
+function rowsOf(id: string, nameFn?: (key: string) => string): RankRow[] {
   const m = data[id];
   if (!m || m.kind !== 'top') return [];
   return (m.data || []).map((r) => ({ name: nameFn ? nameFn(r.key) : r.key, value: r.value }));
 }
-const rankOutCountry = computed(() => rowsOf('l7Flow_outFlux_country', resolveCountry));
-const rankReqCountry = computed(() => rowsOf('l7Flow_request_country', resolveCountry));
-const rankOutProvince = computed(() => rowsOf('l7Flow_outFlux_province', resolveProvince));
-const rankReqProvince = computed(() => rowsOf('l7Flow_request_province', resolveProvince));
+const rankOutCountry = computed<RankRow[]>(() => rowsOf('l7Flow_outFlux_country', resolveCountry));
+const rankReqCountry = computed<RankRow[]>(() => rowsOf('l7Flow_request_country', resolveCountry));
+const rankOutProvince = computed<RankRow[]>(() => rowsOf('l7Flow_outFlux_province', resolveProvince));
+const rankReqProvince = computed<RankRow[]>(() => rowsOf('l7Flow_request_province', resolveProvince));
 
 /* KPI */
-const covered = computed(() => rankReqCountry.value.length || '—');
-function topOf(rows) {
+const covered = computed<string | number>(() => rankReqCountry.value.length || '—');
+function topOf(rows: RankRow[]): RankRow | null {
   return rows.length ? rows[0] : null;
 }
-function pctOf(rows, item) {
+function pctOf(rows: RankRow[], item: RankRow | null): string {
   const total = rows.reduce((a, r) => a + r.value, 0);
   if (!item || !total) return '';
   return ((item.value / total) * 100).toFixed(1) + '%';
 }
-const topReqName = computed(() => {
+const topReqName = computed<string>(() => {
   const t = topOf(rankReqCountry.value);
   return t ? t.name : '—';
 });
-const topReqPct = computed(() => pctOf(rankReqCountry.value, topOf(rankReqCountry.value)));
-const topFluxName = computed(() => {
+const topReqPct = computed<string>(() => pctOf(rankReqCountry.value, topOf(rankReqCountry.value)));
+const topFluxName = computed<string>(() => {
   const t = topOf(rankOutCountry.value);
   return t ? t.name : '—';
 });
-const topFluxPct = computed(() => pctOf(rankOutCountry.value, topOf(rankOutCountry.value)));
-const topProvName = computed(() => {
+const topFluxPct = computed<string>(() => pctOf(rankOutCountry.value, topOf(rankOutCountry.value)));
+const topProvName = computed<string>(() => {
   const t = topOf(rankReqProvince.value);
   return t ? t.name : '—';
 });
-const topProvPct = computed(() => pctOf(rankReqProvince.value, topOf(rankReqProvince.value)));
+const topProvPct = computed<string>(() => pctOf(rankReqProvince.value, topOf(rankReqProvince.value)));
 </script>
 
 <style scoped>

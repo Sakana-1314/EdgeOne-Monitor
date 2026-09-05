@@ -5,24 +5,33 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
+import type { EChartsOption } from 'echarts';
 
-const props = defineProps({
-  option: { type: Object, default: null },
-  height: { type: [String, Number], default: '320px' },
-  loading: { type: Boolean, default: false },
-  notMerge: { type: Boolean, default: true }
-});
+const props = withDefaults(
+  defineProps<{
+    option: EChartsOption | null;
+    height?: string | number;
+    loading?: boolean;
+    notMerge?: boolean;
+  }>(),
+  {
+    option: null,
+    height: '320px',
+    loading: false,
+    notMerge: true
+  }
+);
 
-const el = ref(null);
-const h = computed(() => (typeof props.height === 'number' ? props.height + 'px' : props.height));
+const el = ref<HTMLDivElement | null>(null);
+const h = computed<string>(() => (typeof props.height === 'number' ? props.height + 'px' : props.height || '320px'));
 
-let chart = null;
-let ro = null;
+let chart: ReturnType<typeof echarts.init> | null = null;
+let ro: ResizeObserver | null = null;
 
-function apply() {
+function apply(): void {
   if (!chart) return;
   if (props.option) {
     chart.setOption(props.option, { notMerge: props.notMerge });
@@ -36,13 +45,15 @@ onMounted(() => {
   chart = echarts.init(el.value);
   apply();
   if (typeof ResizeObserver !== 'undefined') {
-    ro = new ResizeObserver(() => chart && chart.resize());
+    ro = new ResizeObserver(() => {
+      if (chart) chart.resize();
+    });
     ro.observe(el.value);
   }
   window.addEventListener('resize', onWindowResize);
 });
 
-function onWindowResize() {
+function onWindowResize(): void {
   if (chart) {
     try {
       chart.resize();

@@ -30,26 +30,43 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
+import type { Component } from 'vue';
 import { HelpCircleOutline, ArrowUpOutline, ArrowDownOutline } from '@vicons/ionicons5';
 
-const props = defineProps({
-  label: { type: String, required: true },
-  valueText: { type: [String, Number], default: '—' },
-  unitText: { type: String, default: '' },
-  icon: { type: Object, default: null },
-  color: { type: String, default: '' },
-  tip: { type: String, default: '' },
-  sub: { type: String, default: '' },
-  loading: { type: Boolean, default: false },
-  error: { type: String, default: '' },
-  growth: { type: Number, default: null }, // 百分比，如 -5.2
-  goodWhen: { type: String, default: 'down' } // up | down：哪个方向算“好”
-});
+const props = withDefaults(
+  defineProps<{
+    label: string;
+    valueText?: string | number;
+    unitText?: string;
+    icon?: Component | null;
+    color?: string;
+    tip?: string;
+    sub?: string;
+    loading?: boolean;
+    error?: string;
+    /** 百分比，如 -5.2 */
+    growth?: number | null;
+    /** up | down：哪个方向算“好” */
+    goodWhen?: 'up' | 'down';
+  }>(),
+  {
+    valueText: '—',
+    unitText: '',
+    icon: null,
+    color: '',
+    tip: '',
+    sub: '',
+    loading: false,
+    error: '',
+    growth: null,
+    goodWhen: 'down'
+  }
+);
 
-const growthClass = computed(() => {
-  const up = props.growth >= 0;
+const growthClass = computed<'flat' | 'good' | 'bad'>(() => {
+  const up = (props.growth ?? 0) >= 0;
   const good = props.goodWhen === 'up' ? up : !up;
   if (props.growth === 0) return 'flat';
   return good ? 'good' : 'bad';

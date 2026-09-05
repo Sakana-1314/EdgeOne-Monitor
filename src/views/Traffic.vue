@@ -45,17 +45,17 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { meta, kpiOf } from '../config/metrics.js';
-import { formatKpi, growthPct } from '../utils/format.js';
-import { seriesFrom } from '../utils/series.js';
-import { buildTrendOption } from '../utils/chart.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { meta, kpiOf } from '../config/metrics';
+import { formatKpi, growthPct } from '../utils/format';
+import { seriesFrom } from '../utils/series';
+import { buildTrendOption } from '../utils/chart';
 
 const app = useAppStore();
 const fluxIds = ['l7Flow_flux', 'l7Flow_inFlux', 'l7Flow_outFlux'];
@@ -63,11 +63,11 @@ const bwIds = ['l7Flow_bandwidth', 'l7Flow_inBandwidth', 'l7Flow_outBandwidth'];
 const ALL = [...fluxIds, ...bwIds];
 const { data, loading } = useMetrics(ALL, { compare: true });
 
-function text(id) {
+function text(id: string): string {
   const { cur, unit } = kpiOf(data[id], id);
   return formatKpi(cur, unit);
 }
-function grow(id) {
+function grow(id: string): number | null {
   const { cur, prev } = kpiOf(data[id], id);
   if (cur == null || prev == null) return null;
   return growthPct(cur, prev);

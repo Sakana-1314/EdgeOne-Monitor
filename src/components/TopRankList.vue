@@ -19,26 +19,52 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
-import { formatByUnit } from '../utils/format.js';
+import { formatByUnit } from '../utils/format';
+import type { MetricUnit } from '../types/model';
 
 const TOP_COLORS = ['linear-gradient(135deg, #fbbf24, #f59e0b)', 'linear-gradient(135deg, #94a3b8, #64748b)', 'linear-gradient(135deg, #fdba74, #b45309)'];
 
-const props = defineProps({
-  rows: { type: Array, default: () => [] }, // [{ name, value, color?, display? }]
-  topN: { type: Number, default: 10 },
-  unit: { type: String, default: 'count' },
-  fmt: { type: Function, default: null },
-  color: { type: String, default: '#3b82f6' },
-  loading: { type: Boolean, default: false }
-});
+/** 排行数据行 */
+interface RankRow {
+  name: string;
+  value: number;
+  color?: string;
+  display?: string;
+}
 
-function resolveColor(i, row) {
+/** 渲染用行（含 pct / color 解析） */
+interface VisibleRow extends RankRow {
+  display: string;
+  pct: number;
+  color: string;
+}
+
+const props = withDefaults(
+  defineProps<{
+    rows?: RankRow[];
+    topN?: number;
+    unit?: MetricUnit;
+    fmt?: ((value: number, row: RankRow) => string) | null;
+    color?: string;
+    loading?: boolean;
+  }>(),
+  {
+    rows: () => [],
+    topN: 10,
+    unit: 'count',
+    fmt: null,
+    color: '#3b82f6',
+    loading: false
+  }
+);
+
+function resolveColor(i: number, row: RankRow): string {
   return row.color || props.color;
 }
 
-const visible = computed(() => {
+const visible = computed<VisibleRow[]>(() => {
   const list = props.rows.slice(0, props.topN);
   const max = Math.max(1, ...list.map((r) => r.value || 0));
   return list.map((r, i) => ({

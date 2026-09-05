@@ -1,11 +1,29 @@
 /**
- * src/config/metrics.js
+ * src/config/metrics.ts
  * 指标展示元数据（标签/颜色/单位），与 edge-functions/lib/registry.js 的指标 id 一一对应。
  * unit: bytes | bps | count | ms
  * kpi:  KPI 卡片取 sum（总量）还是 avg（均值）
  */
+import type { MetricResult, MetricUnit } from '../types/model';
 
-export const M = {
+/** KPI 数值取法 */
+export type MetricKpi = 'sum' | 'max' | 'avg';
+
+/** 指标展示元数据 */
+export interface MetricMeta {
+  label: string;
+  unit: MetricUnit;
+  color: string;
+  kpi?: MetricKpi;
+  /** 是否出现在 TOP 排行列表 */
+  rank?: boolean;
+  /** 是否为世界地图指标（country） */
+  map?: boolean;
+  /** 是否为中国省份指标 */
+  china?: boolean;
+}
+
+export const M: Record<string, MetricMeta> = {
   // 流量
   'l7Flow_flux': { label: '总流量', unit: 'bytes', color: '#3b82f6', kpi: 'sum' },
   'l7Flow_inFlux': { label: '客户端请求流量', unit: 'bytes', color: '#22c55e', kpi: 'sum' },
@@ -59,17 +77,25 @@ export const M = {
   'l7Flow_request_ua': { label: 'User Agent 请求数', unit: 'count', color: '#8b5cf6', rank: true }
 };
 
-export const meta = (id) => M[id] || { label: id, unit: 'count', color: '#64748b', kpi: 'sum' };
+export const meta = (id: string): MetricMeta => M[id] || { label: id, unit: 'count', color: '#64748b', kpi: 'sum' };
+
+/** KPI 取数结果 */
+export interface KpiValue {
+  cur: number | null;
+  prev: number | null | undefined;
+  unit: MetricUnit;
+  kind: MetricKpi;
+}
 
 /**
- * 从后端指标结果中取 KPI 当前值与上一周期值
+ * 从后端指标结果中取 KPI 当前值与上一周期值（仅时序指标携带 sum/max/avg）
  */
-export function kpiOf(m, id) {
-  if (!m) return { cur: null, prev: null, unit: 'count' };
+export function kpiOf(m: MetricResult | undefined, id: string): KpiValue {
   const mm = meta(id);
-  const kind = mm.kpi || 'sum';
+  if (!m || m.kind !== 'time') return { cur: null, prev: null, unit: mm.unit, kind: mm.kpi || 'sum' };
+  const kind: MetricKpi = mm.kpi || 'sum';
   const cur = m[kind];
-  let prev;
+  let prev: number | undefined;
   if (kind === 'max') prev = m.prevMax;
   else if (kind === 'avg') prev = m.prevAvg;
   else prev = m.prevSum;

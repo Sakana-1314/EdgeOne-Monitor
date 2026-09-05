@@ -1,11 +1,24 @@
 /**
- * src/store/dashboard.js —— 全局查询条件：时间范围 / 粒度 / 站点 / 自动刷新
+ * src/store/dashboard.ts —— 全局查询条件：时间范围 / 粒度 / 站点 / 自动刷新
  */
 import { defineStore } from 'pinia';
-import { api } from '../api/index.js';
-import { getToken } from '../api/http.js';
+import { api } from '../api/index';
+import { getToken } from '../api/http';
+import type { CustomRange, RangeKey, Zone } from '../types/model';
 
-export const RANGES = [
+/** 时间范围选项 */
+export interface RangeOption {
+  key: RangeKey;
+  label: string;
+}
+
+/** 数据粒度选项 */
+export interface IntervalOption {
+  key: string;
+  label: string;
+}
+
+export const RANGES: RangeOption[] = [
   { key: '30m', label: '近 30 分钟' },
   { key: '1h', label: '近 1 小时' },
   { key: '3h', label: '近 3 小时' },
@@ -21,7 +34,7 @@ export const RANGES = [
   { key: 'custom', label: '自定义' }
 ];
 
-export const INTERVALS = [
+export const INTERVALS: IntervalOption[] = [
   { key: 'auto', label: '自动' },
   { key: 'min', label: '1 分钟' },
   { key: '5min', label: '5 分钟' },
@@ -33,22 +46,38 @@ const STORE_KEY = 'eo_dash_state';
 
 const AUTO_VALUES = [0, 30, 60, 300];
 
-function clampInt(v, lo, hi) {
+/** 本地记忆的持久化形态（字段均需在加载时校验） */
+interface PersistedState {
+  rangeKey?: RangeKey;
+  interval?: string;
+  zoneId?: string;
+  autoRefresh?: number;
+  custom?: CustomRange;
+}
+
+function clampInt(v: unknown, lo: number, hi: number): number {
   const n = Math.max(lo, Math.min(hi, Number(v) || lo));
   return Math.round(n);
 }
 
 /** 读取本地记忆（只取合法值） */
-function loadPersisted() {
+function loadPersisted(): Partial<PersistedState> {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {};
-    const out = {};
-    if (raw.rangeKey === 'custom' || RANGES.some((r) => r.key === raw.rangeKey)) out.rangeKey = raw.rangeKey;
-    if (INTERVALS.some((i) => i.key === raw.interval)) out.interval = raw.interval;
+    const raw = (JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}) as Record<string, unknown>;
+    const out: Partial<PersistedState> = {};
+    if (raw.rangeKey === 'custom' || RANGES.some((r) => r.key === raw.rangeKey)) out.rangeKey = raw.rangeKey as RangeKey;
+    if (INTERVALS.some((i) => i.key === raw.interval)) out.interval = raw.interval as string;
     if (typeof raw.zoneId === 'string') out.zoneId = raw.zoneId;
-    if (AUTO_VALUES.includes(raw.autoRefresh)) out.autoRefresh = raw.autoRefresh;
-    if (raw.custom && Number.isFinite(raw.custom.d)) {
-      out.custom = { d: clampInt(raw.custom.d, 0, 31), h: clampInt(raw.custom.h, 0, 23), m: clampInt(raw.custom.m, 0, 59) };
+    const ar = raw.autoRefresh;
+    if (typeof ar === 'number' && AUTO_VALUES.includes(ar)) out.autoRefresh = ar;
+    const c = raw.custom;
+    if (c && typeof c === 'object' && Number.isFinite(Number((c as { d?: unknown }).d))) {
+      const cd = c as { d?: unknown; h?: unknown; m?: unknown };
+      out.custom = {
+        d: clampInt(cd.d, 0, 31),
+        h: clampInt(cd.h, 0, 23),
+        m: clampInt(cd.m, 0, 59)
+      };
     }
     return out;
   } catch {
@@ -56,7 +85,7 @@ function loadPersisted() {
   }
 }
 
-const DUR = {
+const DUR: Partial<Record<RangeKey, number>> = {
   '30m': 30 * 60 * 1000,
   '1h': 3600 * 1000,
   '3h': 3 * 3600 * 1000,
@@ -69,45 +98,55 @@ const DUR = {
   '31d': 31 * 86400 * 1000
 };
 
-function startOfToday() {
+function startOfToday(): number {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-function iso(ms) {
+function iso(ms: number): string {
   return new Date(ms).toISOString().slice(0, 19) + 'Z';
+}
+
+/** 查询窗口（毫秒边界 + UTC ISO + 粒度/站点） */
+export interface QueryWindow {
+  startMs: number;
+  endMs: number;
+  startISO: string;
+  endISO: string;
+  interval: string;
+  zoneId: string;
 }
 
 export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
-    rangeKey: '24h',
-    custom: { d: 0, h: 0, m: 0 },
+    rangeKey: '24h' as RangeKey,
+    custom: { d: 0, h: 0, m: 0 } as CustomRange,
     interval: 'auto',
     zoneId: '',
-    zones: [],
+    zones: [] as Zone[],
     autoRefresh: 0, // 0=关闭；单位秒
     revision: 0,
     refreshedAt: 0,
     ...loadPersisted()
   }),
   getters: {
-    rangeLabel(state) {
+    rangeLabel(state): string {
       const r = RANGES.find((x) => x.key === state.rangeKey);
       return r ? r.label : '自定义';
     },
-    zonesWithAll(state) {
+    zonesWithAll(state): Zone[] {
       return [{ id: '', name: '全部站点' }, ...state.zones];
     }
   },
   actions: {
-    rangeDur() {
+    rangeDur(): number {
       return DUR[this.rangeKey] || 0;
     },
     /** 当前查询窗口（UTC ISO）。capDays 用于限制最大跨度（如安全指标 14 天） */
-    getWindow({ capDays } = {}) {
+    getWindow({ capDays }: { capDays?: number } = {}): QueryWindow {
       const now = Date.now();
-      let startMs;
+      let startMs: number;
       let endMs = now;
       const range = this.rangeKey;
 
@@ -136,11 +175,11 @@ export const useDashboardStore = defineStore('dashboard', {
         zoneId: this.zoneId
       };
     },
-    bump() {
+    bump(): void {
       this.revision += 1;
       this.refreshedAt = Date.now();
     },
-    persist() {
+    persist(): void {
       try {
         localStorage.setItem(
           STORE_KEY,
@@ -150,37 +189,37 @@ export const useDashboardStore = defineStore('dashboard', {
         /* 忽略（隐私模式等） */
       }
     },
-    setRange(key) {
+    setRange(key: RangeKey): void {
       if (!RANGES.find((r) => r.key === key)) return;
       this.rangeKey = key;
       this.persist();
       this.bump();
     },
-    applyCustom({ d = 0, h = 0, m = 0 }) {
-      this.custom = { d: Math.max(0, d | 0), h: Math.max(0, h | 0), m: Math.max(0, m | 0) };
+    applyCustom(c: { d?: number; h?: number; m?: number } = {}): void {
+      this.custom = { d: Math.max(0, (c.d || 0) | 0), h: Math.max(0, (c.h || 0) | 0), m: Math.max(0, (c.m || 0) | 0) };
       this.rangeKey = 'custom';
       this.persist();
       this.bump();
     },
-    customDurMs() {
+    customDurMs(): number {
       const c = this.custom;
       return ((c.d * 24 + c.h) * 60 + c.m) * 60000;
     },
-    setInterval(iv) {
+    setInterval(iv: string): void {
       this.interval = iv;
       this.persist();
       this.bump();
     },
-    setZone(id) {
+    setZone(id: string): void {
       this.zoneId = id || '';
       this.persist();
       this.bump();
     },
-    setAutoRefresh(sec) {
+    setAutoRefresh(sec: number | string): void {
       this.autoRefresh = Number(sec) || 0;
       this.persist();
     },
-    async loadZones() {
+    async loadZones(): Promise<void> {
       if (!getToken()) return;
       try {
         const data = await api.zones();

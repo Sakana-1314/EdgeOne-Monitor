@@ -1,10 +1,11 @@
 /**
- * src/router/index.js —— Vue Router (hash 模式，便于 EdgeOne Pages 静态部署)
+ * src/router/index.ts —— Vue Router (hash 模式，便于 EdgeOne Pages 静态部署)
  */
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { useAppStore } from '../store/app.js';
+import type { RouteRecordRaw } from 'vue-router';
+import { useAppStore } from '../store/app';
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',

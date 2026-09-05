@@ -1,25 +1,36 @@
 /**
-* edge-functions/lib/jwt.js
+ * edge-functions/lib/jwt.ts
  * HS256 JWT 签发 / 校验，零依赖，基于 WebCrypto。
  */
 
-import { bytesToBase64Url, base64UrlToBytes, hmacSha256, safeEqualStr } from './utils.js';
+import { bytesToBase64Url, base64UrlToBytes, hmacSha256, safeEqualStr } from './utils.ts';
+import type { JwtClaims } from './types.ts';
 
-function b64url(str) {
+function b64url(str: string): string {
   return bytesToBase64Url(new TextEncoder().encode(str));
+}
+
+/** 把 base64url 的 JSON 负载安全解析为对象负载；非对象（含解析失败）返回 null */
+function parseClaimsPayload(payloadB64: string): JwtClaims | null {
+  try {
+    const decoded: unknown = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64)));
+    if (typeof decoded === 'object' && decoded !== null) return decoded as JwtClaims;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * 签发 JWT
- * @param {string} secret
- * @param {object} payload  业务负载，会自动追加 iat/exp
- * @param {number} ttlDays  有效期（天）
- * @returns {Promise<string>}
+ * @param secret  签名密钥
+ * @param payload 业务负载，会自动追加 iat/exp/iss/aud
+ * @param ttlDays 有效期（天）
  */
-export async function signToken(secret, payload, ttlDays = 7) {
+export async function signToken(secret: string, payload: Record<string, unknown>, ttlDays = 7): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'HS256', typ: 'JWT' };
-  const body = {
+  const body: Record<string, unknown> = {
     ...payload,
     iat: now,
     exp: now + ttlDays * 24 * 60 * 60,
@@ -35,7 +46,7 @@ export async function signToken(secret, payload, ttlDays = 7) {
 /**
  * 校验 JWT 并返回负载；非法/过期返回 null
  */
-export async function verifyToken(token, secret) {
+export async function verifyToken(token: string, secret: string): Promise<JwtClaims | null> {
   if (!token || typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -45,12 +56,8 @@ export async function verifyToken(token, secret) {
   const ok = await safeEqualStr(bytesToBase64Url(expected), s);
   if (!ok) return null;
 
-  let payload;
-  try {
-    payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(p)));
-  } catch {
-    return null;
-  }
+  const payload = parseClaimsPayload(p);
+  if (!payload) return null;
 
   const now = Math.floor(Date.now() / 1000);
   if (!payload.exp || payload.exp < now) return null; // 过期

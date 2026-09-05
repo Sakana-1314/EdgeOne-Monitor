@@ -32,32 +32,32 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { ConstructOutline, TimeOutline } from '@vicons/ionicons5';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { kpiOf } from '../config/metrics.js';
-import { formatKpi, growthPct } from '../utils/format.js';
-import { seriesFrom } from '../utils/series.js';
-import { buildTrendOption } from '../utils/chart.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { kpiOf } from '../config/metrics';
+import { formatKpi, growthPct } from '../utils/format';
+import { seriesFrom } from '../utils/series';
+import { buildTrendOption } from '../utils/chart';
 
 const app = useAppStore();
 const ids = ['function_requestCount', 'function_cpuCostTime'];
 const { data, loading } = useMetrics(ids, { compare: true });
 
-const reqText = computed(() => {
+const reqText = computed<string>(() => {
   const { cur, unit } = kpiOf(data['function_requestCount'], 'function_requestCount');
   return cur == null ? '—' : formatKpi(cur, unit);
 });
-const cpuText = computed(() => {
+const cpuText = computed<string>(() => {
   const { cur, unit } = kpiOf(data['function_cpuCostTime'], 'function_cpuCostTime');
   return cur == null ? '—' : formatKpi(cur, unit);
 });
-function grow(id) {
+function grow(id: string): number | null {
   const { cur, prev } = kpiOf(data[id], id);
   if (cur == null || prev == null) return null;
   return growthPct(cur, prev);

@@ -14,13 +14,23 @@
   </n-card>
 </template>
 
-<script setup>
-defineProps({
-  title: { type: String, default: '' },
-  icon: { type: Object, default: null },
-  color: { type: String, default: '' },
-  badge: { type: String, default: '' }
-});
+<script setup lang="ts">
+import type { Component } from 'vue';
+
+withDefaults(
+  defineProps<{
+    title?: string;
+    icon?: Component | null;
+    color?: string;
+    badge?: string;
+  }>(),
+  {
+    title: '',
+    icon: null,
+    color: '',
+    badge: ''
+  }
+);
 </script>
 
 <style scoped>

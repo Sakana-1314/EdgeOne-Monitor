@@ -15,12 +15,14 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import Segmented from '../components/Segmented.vue';
 import TopDimension from './TopDimension.vue';
 
-const dim = ref('flux');
+type TopDim = 'flux' | 'req';
+
+const dim = ref<TopDim>('flux');
 </script>
 
 <style scoped>

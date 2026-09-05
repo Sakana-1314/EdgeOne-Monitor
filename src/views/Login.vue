@@ -65,29 +65,36 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
+import type { FormInst, FormRules } from 'naive-ui';
 import { PersonOutline, LockClosedOutline, CheckmarkCircleOutline } from '@vicons/ionicons5';
-import { useAppStore } from '../store/app.js';
+import { useAppStore } from '../store/app';
+import { errText } from '../utils/format';
+
+interface LoginForm {
+  username: string;
+  password: string;
+}
 
 const router = useRouter();
 const route = useRoute();
 const app = useAppStore();
 const message = useMessage();
 
-const formRef = ref(null);
-const form = reactive({ username: 'admin', password: '' });
+const formRef = ref<FormInst | null>(null);
+const form = reactive<LoginForm>({ username: 'admin', password: '' });
 const loading = ref(false);
 const error = ref('');
 
-const rules = {
+const rules: FormRules = {
   username: { required: true, message: '请输入账号', trigger: ['blur', 'input'] },
   password: { required: true, message: '请输入密码', trigger: ['blur', 'input'] }
 };
 
-async function submit() {
+async function submit(): Promise<void> {
   try {
     await formRef.value?.validate();
   } catch {
@@ -99,16 +106,16 @@ async function submit() {
     await app.login(form.username.trim(), form.password);
     message.success('登录成功，欢迎回来');
     const redirect = route.query.redirect ? String(route.query.redirect) : '/';
-    router.replace(redirect);
+    await router.replace(redirect);
   } catch (e) {
-    error.value = e.message || '登录失败';
+    error.value = errText(e) || '登录失败';
   } finally {
     loading.value = false;
   }
 }
 
 onMounted(() => {
-  if (!app.booted) app.boot();
+  if (!app.booted) void app.boot();
 });
 </script>
 

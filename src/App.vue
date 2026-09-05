@@ -14,17 +14,18 @@
   </n-config-provider>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { darkTheme, zhCN, dateZhCN } from 'naive-ui';
-import { useAppStore } from './store/app.js';
-import { naiveOverrides, applyCssTokens } from './config/theme.js';
+import type { GlobalThemeOverrides } from 'naive-ui';
+import { useAppStore } from './store/app';
+import { naiveOverrides, applyCssTokens } from './config/theme';
 import { useRoute } from 'vue-router';
 
 const app = useAppStore();
 const route = useRoute();
 
-const overrides = computed(() => naiveOverrides(app.isDark));
+const overrides = computed<GlobalThemeOverrides>(() => naiveOverrides(app.isDark));
 
 watch(
   () => app.effectiveTheme,
@@ -40,14 +41,14 @@ watch(
   }
 );
 
-let mql;
-function onSystemThemeChange() {
+let mql: MediaQueryList | null = null;
+function onSystemThemeChange(): void {
   if (app.themeMode === 'auto') app.notifyTheme();
 }
 
 onMounted(() => {
   app.applyThemeClass();
-  app.boot();
+  void app.boot();
   if (window.matchMedia) {
     mql = window.matchMedia('(prefers-color-scheme: dark)');
     mql.addEventListener('change', onSystemThemeChange);

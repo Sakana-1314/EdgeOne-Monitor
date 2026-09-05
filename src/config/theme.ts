@@ -1,7 +1,31 @@
 /**
- * src/config/theme.js —— 主题令牌（GitHub Primer 配色）+ NaiveUI 覆盖 + 小圆角
+ * src/config/theme.ts —— 主题令牌（GitHub Primer 配色）+ NaiveUI 覆盖 + 小圆角
  */
-export const PALETTES = {
+import type { GlobalThemeOverrides } from 'naive-ui';
+
+/** 一套完整主题令牌（浅色 / 深色共用结构） */
+export interface Palette {
+  bg: string; // canvas.default
+  card: string; // 卡片/面板
+  subtle: string; // canvas.subtle（hover、次级填充）
+  border: string; // border.default
+  text1: string; // fg.default
+  text2: string; // fg.muted
+  text3: string; // fg.subtle
+  fill1: string;
+  hover: string;
+  primary: string; // accent.fg
+  primaryHover: string;
+  primaryPressed: string;
+  info: string;
+  success: string;
+  warning: string;
+  error: string;
+}
+
+export type PaletteKey = 'light' | 'dark';
+
+export const PALETTES: Record<PaletteKey, Palette> = {
   light: {
     bg: '#ffffff', // canvas.default
     card: '#ffffff', // 卡片/面板
@@ -41,7 +65,7 @@ export const PALETTES = {
 };
 
 /** NaiveUI themeOverrides（跟随 light/dark，GitHub 风格） */
-export function naiveOverrides(dark) {
+export function naiveOverrides(dark: boolean): GlobalThemeOverrides {
   const t = PALETTES[dark ? 'dark' : 'light'];
   return {
     common: {
@@ -76,12 +100,12 @@ export function naiveOverrides(dark) {
 }
 
 /** 同步写入 CSS 变量（供自定义组件使用，含小圆角令牌） */
-export function applyCssTokens(dark) {
+export function applyCssTokens(dark: boolean): void {
   const t = PALETTES[dark ? 'dark' : 'light'];
   const root = document.documentElement;
   root.classList.toggle('dark', dark);
   root.setAttribute('data-theme', dark ? 'dark' : 'light');
-  const map = {
+  const map: Record<string, string> = {
     '--eo-bg': t.bg,
     '--eo-card': t.card,
     '--eo-subtle': t.subtle,

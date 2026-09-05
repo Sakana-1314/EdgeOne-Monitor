@@ -31,52 +31,54 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { ShieldCheckmarkOutline } from '@vicons/ionicons5';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useDashboardStore } from '../store/dashboard.js';
-import { useAppStore } from '../store/app.js';
-import { meta, kpiOf } from '../config/metrics.js';
-import { formatKpi, growthPct } from '../utils/format.js';
-import { seriesFrom } from '../utils/series.js';
-import { buildTrendOption } from '../utils/chart.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useDashboardStore } from '../store/dashboard';
+import { useAppStore } from '../store/app';
+import { meta, kpiOf } from '../config/metrics';
+import { formatKpi, growthPct } from '../utils/format';
+import { seriesFrom } from '../utils/series';
+import { buildTrendOption } from '../utils/chart';
 
 const app = useAppStore();
 const dash = useDashboardStore();
 const ids = ['ccAcl_interceptNum', 'ccManage_interceptNum', 'ccRate_interceptNum'];
 const { data, loading } = useMetrics(ids, { compare: true, capDays: 14 });
 
-const capped = computed(() => dash.rangeDur() > 14 * 86400000 || dash.rangeKey === '31d' || dash.rangeKey === 'custom' && dash.customDurMs() > 14 * 86400000);
+const capped = computed<boolean>(
+  () => dash.rangeDur() > 14 * 86400000 || dash.rangeKey === '31d' || (dash.rangeKey === 'custom' && dash.customDurMs() > 14 * 86400000)
+);
 
-function text(id) {
+function text(id: string): string {
   const { cur, unit } = kpiOf(data[id], id);
   return formatKpi(cur, unit);
 }
-function grow(id) {
+function grow(id: string): number | null {
   const { cur, prev } = kpiOf(data[id], id);
   if (cur == null || prev == null) return null;
   return growthPct(cur, prev);
 }
 
-function sumAll(prev = false) {
+function sumAll(prev = false): number {
   let t = 0;
   ids.forEach((id) => {
     const m = data[id];
-    if (!m) return;
+    if (!m || m.kind !== 'time') return;
     if (prev) t += m.prevSum || 0;
     else t += m.sum || 0;
   });
   return t;
 }
-const totalText = computed(() => {
+const totalText = computed<string>(() => {
   if (!ids.some((id) => data[id])) return '—';
   return formatKpi(sumAll(false), 'count');
 });
-const totalGrow = computed(() => {
+const totalGrow = computed<number | null>(() => {
   const cur = sumAll(false);
   const prev = sumAll(true);
   if (!cur && !prev) return null;

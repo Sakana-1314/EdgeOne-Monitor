@@ -1,22 +1,39 @@
 /**
- * src/api/http.js —— 带鉴权的 fetch 封装
+ * src/api/http.ts —— 带鉴权的 fetch 封装
  * 401 自动清理凭证并跳转登录页
  */
 
 const TOKEN_KEY = 'eo_admin_token';
 
-export function getToken() {
+export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) || '';
 }
-export function setToken(t) {
+export function setToken(t: string | null | undefined): void {
   if (t) localStorage.setItem(TOKEN_KEY, t);
   else localStorage.removeItem(TOKEN_KEY);
 }
-export function clearToken() {
+export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-async function request(path, { method = 'GET', body, params } = {}) {
+/** 查询参数（会被编码为 query string） */
+export type HttpParams = Record<string, string | number | undefined>;
+
+/** 请求选项 */
+interface RequestOptions {
+  method?: 'GET' | 'POST';
+  body?: unknown;
+  params?: HttpParams;
+}
+
+/** 后端统一响应外壳（code/message/data） */
+interface ApiEnvelope {
+  code?: number;
+  message?: string;
+  data?: unknown;
+}
+
+async function request<T>(path: string, { method = 'GET', body, params }: RequestOptions = {}): Promise<T> {
   let url = path;
   if (params) {
     const qs = new URLSearchParams();
@@ -27,21 +44,21 @@ async function request(path, { method = 'GET', body, params } = {}) {
     url += (url.includes('?') ? '&' : '?') + q;
   }
 
-  const headers = { accept: 'application/json' };
+  const headers: Record<string, string> = { accept: 'application/json' };
   const token = getToken();
   if (token) headers.authorization = `Bearer ${token}`;
   if (body) headers['content-type'] = 'application/json';
 
-  let res;
+  let res: Response;
   try {
     res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  } catch (e) {
+  } catch {
     throw new Error('网络请求失败，请检查后端服务是否可用');
   }
 
-  let payload = null;
+  let payload: ApiEnvelope | null = null;
   try {
-    payload = await res.json();
+    payload = (await res.json()) as ApiEnvelope;
   } catch {
     /* ignore */
   }
@@ -59,10 +76,10 @@ async function request(path, { method = 'GET', body, params } = {}) {
   if (!res.ok || (payload && payload.code && payload.code !== 0)) {
     throw new Error(payload?.message || `请求失败(${res.status})`);
   }
-  return payload ? payload.data : null;
+  return (payload ? payload.data : null) as T;
 }
 
 export const http = {
-  get: (path, params) => request(path, { params }),
-  post: (path, body) => request(path, { method: 'POST', body })
+  get: <T>(path: string, params?: HttpParams): Promise<T> => request<T>(path, { params }),
+  post: <T>(path: string, body: unknown): Promise<T> => request<T>(path, { method: 'POST', body })
 };

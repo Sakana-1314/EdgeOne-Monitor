@@ -35,18 +35,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { FlashOutline } from '@vicons/ionicons5';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { meta, kpiOf } from '../config/metrics.js';
-import { formatKpi, growthPct } from '../utils/format.js';
-import { seriesFrom } from '../utils/series.js';
-import { buildTrendOption } from '../utils/chart.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { meta, kpiOf } from '../config/metrics';
+import { formatKpi, growthPct } from '../utils/format';
+import { seriesFrom } from '../utils/series';
+import { buildTrendOption } from '../utils/chart';
+import type { MetricResult } from '../types/model';
 
 const app = useAppStore();
 const kpiIds = [
@@ -59,31 +60,32 @@ const kpiIds = [
 const ids = [...kpiIds, 'l7Flow_outFlux'];
 const { data, loading } = useMetrics(ids, { compare: true });
 
-function text(id) {
+function text(id: string): string {
   const { cur, unit } = kpiOf(data[id], id);
   return formatKpi(cur, unit);
 }
-function grow(id) {
+function grow(id: string): number | null {
   const { cur, prev } = kpiOf(data[id], id);
   if (cur == null || prev == null) return null;
   return growthPct(cur, prev);
 }
 
-/* 缓存命中率 */
-function hitOf(m) {
-  const origin = m && m.sum;
-  const edge = data['l7Flow_outFlux'] && data['l7Flow_outFlux'].sum;
+/** 缓存命中率（%），无法计算时返回 null */
+function hitOf(m: MetricResult | undefined): number | null {
+  const origin = m && m.kind === 'time' ? m.sum : undefined;
+  const edgeMetric = data['l7Flow_outFlux'];
+  const edge = edgeMetric && edgeMetric.kind === 'time' ? edgeMetric.sum : undefined;
   if (origin == null || !edge) return null;
   return Math.max(0, Math.min(100, (1 - origin / edge) * 100));
 }
-const hitText = computed(() => {
+const hitText = computed<string>(() => {
   const h = hitOf(data['l7Flow_inFlux_hy']);
   return h == null ? '—' : h.toFixed(2) + '%';
 });
-const hitGrow = computed(() => {
+const hitGrow = computed<number | null>(() => {
   const m = data['l7Flow_inFlux_hy'];
   const e = data['l7Flow_outFlux'];
-  if (!m || !e) return null;
+  if (!m || m.kind !== 'time' || !e || e.kind !== 'time') return null;
   const curOrigin = m.sum;
   const curEdge = e.sum;
   if (!curEdge) return null;

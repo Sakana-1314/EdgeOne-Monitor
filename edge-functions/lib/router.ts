@@ -1,5 +1,5 @@
 /**
- * edge-functions/lib/router.js
+ * edge-functions/lib/router.ts
  * EdgeOne Edge Functions 后端路由（鉴权 + 数据接口 + 站点/域名白名单）
  *
  * - 输入：标准 Web API Request + env（Edge Functions 环境变量）
@@ -7,21 +7,40 @@
  * - 站点限制：ALLOWED_ZONE_IDS（空 = 不限），未授权站点请求返回 403
  */
 
-import { signToken, verifyToken } from './jwt.js';
-import { safeEqualStr, readJsonBody, formatUTCDate } from './utils.js';
-import { isValidMetric, normalizeTime, normalizeInterval, KIND } from './registry.js';
-import { allowedZones } from './allowlist.js';
-import * as teo from './teo.js';
+import { signToken, verifyToken } from './jwt.ts';
+import { safeEqualStr, readJsonBody, formatUTCDate, errorMessage } from './utils.ts';
+import { isValidMetric, normalizeTime, normalizeInterval, KIND } from './registry.ts';
+import { allowedZones } from './allowlist.ts';
+import * as teo from './teo.ts';
+import type {
+  Env,
+  JwtClaims,
+  TimeMetricResult,
+  MetricsMap,
+  TimeWindow,
+  ParseWindowResult
+} from './types.ts';
 
 const VERSION = '2.2.0';
 const DEFAULT_TTL_DAYS = 7;
 
-function cfg(env) {
-  const get = (k, d) => {
-    const v = env?.[k];
+/** 由环境变量归一化得到的应用配置 */
+interface AppConfig {
+  adminPassword: string;
+  jwtSecret: string;
+  ttlDays: number;
+  siteName: string;
+  siteIcon: string;
+  configured: boolean;
+  allowOrigins: string;
+}
+
+function cfg(env: Env): AppConfig {
+  const get = (k: string, d: string): string => {
+    const v: unknown = env[k];
     return v === undefined || v === null || v === '' ? d : String(v);
   };
-  const hasCred = Boolean(env?.SECRET_ID && env?.SECRET_KEY);
+  const hasCred = Boolean(env.SECRET_ID && env.SECRET_KEY);
   return {
     adminPassword: get('ADMIN_PASSWORD', ''),
     jwtSecret: get('JWT_SECRET', ''),
@@ -33,16 +52,16 @@ function cfg(env) {
   };
 }
 
-const json = (data, status = 200) =>
+const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
   });
 
 /** CORS 头 */
-export function corsHeaders(request, allowOrigins) {
+export function corsHeaders(request: Request, allowOrigins: string): Record<string, string> {
   const origin = request.headers.get('origin');
-  const h = {
+  const h: Record<string, string> = {
     'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'access-control-allow-headers': 'content-type, authorization, x-requested-with',
     'access-control-max-age': '86400',
@@ -58,19 +77,19 @@ export function corsHeaders(request, allowOrigins) {
   return h;
 }
 
-function bearer(request) {
+function bearer(request: Request): string {
   const auth = request.headers.get('authorization') || '';
   return auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
 }
 
-async function authenticate(env, request) {
+async function authenticate(env: Env, request: Request): Promise<JwtClaims | null> {
   const c = cfg(env);
   const token = bearer(request);
   if (!token) return null;
   return verifyToken(token, c.jwtSecret);
 }
 
-function parseWindow(url) {
+function parseWindow(url: URL): ParseWindowResult {
   const now = Date.now();
   const fallbackStart = formatUTCDate(new Date(now - 24 * 3600000));
   const fallbackEnd = formatUTCDate(new Date(now));
@@ -81,13 +100,14 @@ function parseWindow(url) {
   const end = normalizeTime(endRaw, fallbackEnd);
 
   if (!start || !end || new Date(end).getTime() <= new Date(start).getTime()) {
-    return { error: '时间范围无效：结束时间必须晚于开始时间' };
+    return { ok: false, error: '时间范围无效：结束时间必须晚于开始时间' };
   }
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
-  if (endMs - startMs > 92 * 86400000) return { error: '时间范围不能超过 92 天' };
+  if (endMs - startMs > 92 * 86400000) return { ok: false, error: '时间范围不能超过 92 天' };
 
   return {
+    ok: true,
     start,
     end,
     startMs,
@@ -102,10 +122,15 @@ function parseWindow(url) {
 }
 
 /** 为时间类指标追加“上一周期”对比值（真实数据再查一次上一窗口） */
-async function withCompare(env, results, opts, compare) {
+async function withCompare(
+  env: Env,
+  results: MetricsMap,
+  opts: TimeWindow,
+  compare: boolean
+): Promise<MetricsMap> {
   if (!compare) return results;
   const timeIds = Object.values(results)
-    .filter((r) => r && r.kind === KIND.TIME)
+    .filter((r): r is TimeMetricResult => r != null && r.kind === KIND.TIME)
     .map((r) => r.id);
   if (!timeIds.length) return results;
 
@@ -118,24 +143,25 @@ async function withCompare(env, results, opts, compare) {
     startMs: prevEndMs - dur,
     endMs: prevEndMs
   };
-  let prev;
+  let prev: MetricsMap;
   try {
     prev = await teo.fetchMetrics(env, timeIds, prevOpts);
   } catch {
     return results;
   }
   for (const id of timeIds) {
-    const p = prev[id];
-    if (results[id] && p) {
-      results[id].prevSum = p.sum;
-      results[id].prevAvg = p.avg;
-      if (p.max !== undefined) results[id].prevMax = p.max;
+    const cur = results[id];
+    const prevRes = prev[id];
+    if (cur && prevRes && cur.kind === KIND.TIME && prevRes.kind === KIND.TIME) {
+      cur.prevSum = prevRes.sum;
+      cur.prevAvg = prevRes.avg;
+      if (prevRes.max !== undefined) cur.prevMax = prevRes.max;
     }
   }
   return results;
 }
 
-function handleConfig(env) {
+function handleConfig(env: Env): Response {
   const c = cfg(env);
   return json({
     code: 0,
@@ -149,12 +175,13 @@ function handleConfig(env) {
   });
 }
 
-async function handleLogin(env, request) {
-  const body = await readJsonBody(request);
+async function handleLogin(env: Env, request: Request): Promise<Response> {
+  const body: unknown = await readJsonBody(request);
   if (!body) return json({ code: 400, message: '请求体格式错误' }, 400);
 
-  const username = String(body.username || '').trim();
-  const password = String(body.password || '');
+  const rec = body as Record<string, unknown>;
+  const username = String(rec.username || '').trim();
+  const password = String(rec.password || '');
   const c = cfg(env);
 
   if (!c.adminPassword || !c.jwtSecret) {
@@ -179,34 +206,38 @@ async function handleLogin(env, request) {
       token,
       tokenType: 'Bearer',
       expiresIn: c.ttlDays * 86400,
-      expiresAt: payload.exp * 1000,
+      expiresAt: payload!.exp! * 1000,
       user: { username: 'admin', name: 'admin' }
     }
   });
 }
 
 /** 依赖腾讯云凭据的接口统一错误返回（对外不暴露部署细节） */
-function noCredential() {
+function noCredential(): Response {
   return json({ code: 503, message: '数据服务暂未就绪，请稍后重试' }, 503);
 }
 
-function forbiddenZone() {
+function forbiddenZone(_zone?: string): Response {
   return json({ code: 403, message: '该站点不在允许监控的范围内', hint: '如需开通请联系管理员' }, 403);
 }
+
+/** authorizeZones 的返回 */
+type ZoneAuthz =
+  | { ok: true; zones: string[] }
+  | { ok: false; zones: string[]; forbidden: string };
 
 /**
  * 站点白名单强制解析：
  * - 白名单为空 -> 维持原请求（'*' 表示全账号）
  * - 白名单非空 -> '*' 展开为白名单站点；显式站点必须命中白名单，否则返回错误
- * @returns {{ok:boolean, zones?:string[], error?:Response, forbidden?:string}}
  */
-function authorizeZones(env, requestedZoneIds) {
+function authorizeZones(env: Env, requestedZoneIds: string[]): ZoneAuthz {
   const allowed = allowedZones(env);
   if (!allowed.length) {
     const hasStar = requestedZoneIds.some((z) => z === '*');
     return { ok: true, zones: hasStar ? ['*'] : [...requestedZoneIds] };
   }
-  const out = [];
+  const out: string[] = [];
   for (const z of requestedZoneIds) {
     if (z === '*') out.push(...allowed);
     else if (allowed.includes(z)) out.push(z);
@@ -215,17 +246,17 @@ function authorizeZones(env, requestedZoneIds) {
   return { ok: true, zones: [...new Set(out)] };
 }
 
-async function handleZones(env) {
+async function handleZones(env: Env): Promise<Response> {
   if (!cfg(env).configured) return noCredential();
   try {
     const zones = await teo.listZones(env, allowedZones(env));
     return json({ code: 0, data: { zones } });
-  } catch (e) {
-    return json({ code: 502, message: e.message || '站点列表获取失败', detail: String(e) }, 502);
+  } catch (e: unknown) {
+    return json({ code: 502, message: errorMessage(e) || '站点列表获取失败', detail: String(e) }, 502);
   }
 }
 
-async function handleMetrics(env, url) {
+async function handleMetrics(env: Env, url: URL): Promise<Response> {
   if (!cfg(env).configured) return noCredential();
 
   const namesRaw = url.searchParams.get('names') || '';
@@ -234,7 +265,7 @@ async function handleMetrics(env, url) {
     return json({ code: 400, message: '缺少合法的 names 指标参数' }, 400);
   }
   const win = parseWindow(url);
-  if (win.error) return json({ code: 400, message: win.error }, 400);
+  if (!win.ok) return json({ code: 400, message: win.error }, 400);
 
   // 站点白名单强制
   const authz = authorizeZones(env, win.zoneIds);
@@ -252,12 +283,12 @@ async function handleMetrics(env, url) {
         metrics: results
       }
     });
-  } catch (e) {
-    return json({ code: 502, message: e.message || '数据源请求失败', detail: String(e) }, 502);
+  } catch (e: unknown) {
+    return json({ code: 502, message: errorMessage(e) || '数据源请求失败', detail: String(e) }, 502);
   }
 }
 
-async function handlePages(env, url) {
+async function handlePages(env: Env, url: URL): Promise<Response> {
   if (!cfg(env).configured) return noCredential();
   const which = url.pathname.split('/').pop();
   const zoneId = url.searchParams.get('zoneId') || '';
@@ -274,24 +305,29 @@ async function handlePages(env, url) {
     }
     if (which === 'cf-requests') {
       const win = parseWindow(url);
-      const r = await teo.fetchPagesCfRequests(env, zoneId, { start: win.start, end: win.end }, allowed);
+      const r = await teo.fetchPagesCfRequests(
+        env,
+        zoneId,
+        { start: win.ok ? win.start : undefined, end: win.ok ? win.end : undefined },
+        allowed
+      );
       return json({ code: 0, data: r });
     }
     if (which === 'cf-monthly') {
       const r = await teo.fetchPagesCfMonthly(env, zoneId, allowed);
       return json({ code: 0, data: r });
     }
-  } catch (e) {
-    return json({ code: 502, message: e.message || 'Pages 数据请求失败', detail: String(e) }, 502);
+  } catch (e: unknown) {
+    return json({ code: 502, message: errorMessage(e) || 'Pages 数据请求失败', detail: String(e) }, 502);
   }
   return json({ code: 404, message: '未知 Pages 接口' }, 404);
 }
 
 /**
  * 统一请求入口：CORS + 鉴权 + 路由
- * 由 edge-functions/api/[[default]].js 的 onRequestGet / onRequestPost / onRequestOptions 调用
+ * 由 edge-functions/api/[[default]].ts 的 onRequestGet / onRequestPost / onRequestOptions 调用
  */
-export async function apiHandler(request, env = {}) {
+export async function apiHandler(request: Request, env: Env = {}): Promise<Response> {
   const c = cfg(env);
 
   // OPTIONS 预检
@@ -300,7 +336,7 @@ export async function apiHandler(request, env = {}) {
   }
 
   const cors = corsHeaders(request, c.allowOrigins);
-  const withCors = (res) =>
+  const withCors = (res: Response): Response =>
     new Response(res.body, { status: res.status, headers: { ...Object.fromEntries(res.headers), ...cors } });
 
   const url = new URL(request.url);
@@ -334,16 +370,16 @@ export async function apiHandler(request, env = {}) {
     if (path === '/api/zones' && request.method === 'GET') return withCors(await handleZones(env));
     if (path === '/api/metrics' && request.method === 'GET') return withCors(await handleMetrics(env, url));
     if (path.startsWith('/api/pages/')) {
-      const allowed = ['build-count', 'cf-requests', 'cf-monthly'].includes(path.split('/').pop());
+      const allowed = ['build-count', 'cf-requests', 'cf-monthly'].includes(path.split('/').pop() || '');
       if (allowed && request.method === 'GET') return withCors(await handlePages(env, url));
     }
     return withCors(json({ code: 404, message: '接口不存在' }, 404));
-  } catch (e) {
-    return withCors(json({ code: 500, message: e.message || '服务器内部错误', detail: String(e) }, 500));
+  } catch (e: unknown) {
+    return withCors(json({ code: 500, message: errorMessage(e) || '服务器内部错误', detail: String(e) }, 500));
   }
 }
 
 /** 兼容 Pages Function 的 EventContext 形式调用 */
-export async function onRequest(context) {
+export async function onRequest(context: { request: Request; env: Env }): Promise<Response> {
   return apiHandler(context.request, context.env);
 }

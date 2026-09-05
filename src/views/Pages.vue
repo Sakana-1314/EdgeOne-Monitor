@@ -38,41 +38,50 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { BuildOutline, AlbumsOutline, CloudOutline, LayersOutline, ServerOutline } from '@vicons/ionicons5';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useLoader } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { api } from '../api/index.js';
-import { formatCount, formatInt } from '../utils/format.js';
-import { buildBarOption, buildTrendOption } from '../utils/chart.js';
+import { useLoader } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { api } from '../api/index';
+import { formatCount, formatInt } from '../utils/format';
+import { buildBarOption, buildTrendOption } from '../utils/chart';
 
 const app = useAppStore();
 
-const { value: buildData, loading: buildLoading, reload: buildReload } = useLoader((dash) => api.pagesBuild(dash.zoneId));
-const { value: cfData, loading: cfLoading, reload: cfReload } = useLoader((dash) => {
+const { value: buildData, loading: buildLoading } = useLoader((dash) => api.pagesBuild(dash.zoneId));
+const { value: cfData, loading: cfLoading } = useLoader((dash) => {
   const win = dash.getWindow({ capDays: 2 });
   return api.pagesCfRequests(dash.zoneId, win);
 });
-const { value: monthData, loading: monthLoading, reload: monthReload } = useLoader((dash) => api.pagesCfMonthly(dash.zoneId));
+const { value: monthData, loading: monthLoading } = useLoader((dash) => api.pagesCfMonthly(dash.zoneId));
 
-function v(key, countFmt = false) {
-  const d = buildData.value || {};
-  const m = monthData.value || {};
+/** KPI 数值字段（build/month 数据按 key 优先取 month） */
+interface PagesLookup {
+  dailyBuilds?: number;
+  monthlyBuilds?: number;
+  monthlyRequests?: number;
+  monthlyGbs?: number;
+  cf24hRequests?: number;
+}
+
+function v(key: keyof PagesLookup, countFmt = false): string {
+  const d = (buildData.value || {}) as PagesLookup;
+  const m = (monthData.value || {}) as PagesLookup;
   const val = key in m ? m[key] : d[key];
   if (val == null) return '—';
   return countFmt ? formatCount(val) : String(formatInt(val));
 }
-const gbsText = computed(() => {
+const gbsText = computed<string>(() => {
   const m = monthData.value;
   if (!m || m.monthlyGbs == null) return '—';
   return String(formatInt(m.monthlyGbs)) + ' GB';
 });
 
-const monthProgress = computed(() => {
+const monthProgress = computed<number>(() => {
   const b = buildData.value;
   if (b && b.monthProgress != null) return b.monthProgress;
   return 0;
@@ -91,7 +100,6 @@ const buildOpt = computed(() => {
 const cfOpt = computed(() => {
   const pts = cfData.value?.points;
   if (!pts || !pts.length) return null;
-  const step = pts.length > 1 ? pts[1].t - pts[0].t : 3600000;
   const cats = pts.map((p) => {
     const d = new Date(p.t);
     return `${String(d.getHours()).padStart(2, '0')}:00`;

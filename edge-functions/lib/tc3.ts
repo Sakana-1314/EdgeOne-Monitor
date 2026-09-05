@@ -1,5 +1,5 @@
 /**
- * edge-functions/lib/tc3.js
+ * edge-functions/lib/tc3.ts
  * 腾讯云 API 3.0 (TC3-HMAC-SHA256) 签名客户端，基于 WebCrypto + fetch，零第三方依赖，
  * 同时可在 Edge Functions / 边缘函数 / Node 环境运行。
  *
@@ -10,30 +10,87 @@
  * 参考: https://cloud.tencent.com/document/product/1278/85305
  */
 
-import { sha256Hex, hmacSha256, toHex, safeJsonParse } from './utils.js';
+import { sha256Hex, hmacSha256, toHex, safeJsonParse } from './utils.ts';
+import type { Env } from './types.ts';
+
+/** buildTC3 入参 */
+export interface BuildTC3Params {
+  secretId: string;
+  secretKey: string;
+  action: string;
+  params?: Record<string, unknown>;
+  version?: string;
+  host?: string;
+  region?: string;
+  path?: string;
+  now?: Date;
+}
+
+/** buildTC3 返回的签名所需各部分 */
+export interface BuildTC3Result {
+  timestamp: number;
+  date: string;
+  authorization: string;
+  payload: string;
+  headerMap: Record<string, string>;
+}
+
+/** requestTC3 可选参数 */
+export interface RequestTC3Options {
+  version?: string;
+  path?: string;
+  timeout?: number;
+  now?: Date;
+}
+
+/** TC3 错误体（Error 段） */
+export interface TC3Error {
+  Code?: string;
+  Message?: string;
+}
+
+/** TC3 单条 Response（业务键不定，统一按 Record 访问） */
+export interface TC3Response extends Record<string, unknown> {
+  Error?: TC3Error;
+  RequestId?: string;
+}
+
+/** TC3 顶层返回包 */
+export interface TC3Envelope extends Record<string, unknown> {
+  Response?: TC3Response;
+}
+
+/** 携带附加错误信息的运行时错误 */
+export interface TC3RuntimeError extends Error {
+  code?: string;
+  status?: number;
+  data?: unknown;
+}
 
 /**
  * 计算 TC3 签名（可独立测试）。返回签名所需的各部分。
  */
-export async function buildTC3({
-  secretId,
-  secretKey,
-  action,
-  params = {},
-  version = '2022-09-01',
-  host = 'teo.tencentcloudapi.com',
-  region = 'ap-guangzhou',
-  path = '/',
-  now = new Date()
-}) {
+export async function buildTC3(params: BuildTC3Params): Promise<BuildTC3Result> {
+  const {
+    secretId,
+    secretKey,
+    action,
+    params: reqParams = {},
+    version = '2022-09-01',
+    host = 'teo.tencentcloudapi.com',
+    region = 'ap-guangzhou',
+    path = '/',
+    now = new Date()
+  } = params;
+
   const service = 'teo';
   const method = 'POST';
   const timestamp = Math.floor(now.getTime() / 1000);
   const date = now.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
-  const payload = JSON.stringify(params);
+  const payload = JSON.stringify(reqParams);
 
   const contentType = 'application/json';
-  const headerMap = {
+  const headerMap: Record<string, string> = {
     'content-type': contentType,
     host,
     // 注意：action 需保留原始大小写（如 DescribeZones），小写会被服务端拒绝
@@ -81,17 +138,22 @@ export async function buildTC3({
 
 /**
  * 对腾讯云 endpoint 发起一次 TC3 签名请求
- * @param {object}   env      { SECRET_ID, SECRET_KEY, TEO_ENDPOINT, TEO_REGION }
- * @param {string}   action   接口名，如 DescribeTimingL7AnalysisData
- * @param {object}   params   请求体
- * @param {object}   opts     { version, path, timeout, now }
- * @returns {Promise<any>}    返回 Response 里的业务字段（含 RequestId 等）
+ * @param env    { SECRET_ID, SECRET_KEY, TEO_ENDPOINT, TEO_REGION }
+ * @param action 接口名，如 DescribeTimingL7AnalysisData
+ * @param params 请求体
+ * @param opts   { version, path, timeout, now }
+ * @returns 业务数据（Record，键视接口而定），失败时抛 TC3RuntimeError
  */
-export async function requestTC3(env, action, params = {}, opts = {}) {
+export async function requestTC3(
+  env: Env,
+  action: string,
+  params: Record<string, unknown> = {},
+  opts: RequestTC3Options = {}
+): Promise<Record<string, unknown>> {
   const secretId = env.SECRET_ID;
   const secretKey = env.SECRET_KEY;
   if (!secretId || !secretKey) {
-    const err = new Error('缺少腾讯云凭据 SECRET_ID / SECRET_KEY');
+    const err = new Error('缺少腾讯云凭据 SECRET_ID / SECRET_KEY') as TC3RuntimeError;
     err.code = 'NO_CREDENTIAL';
     throw err;
   }
@@ -118,24 +180,24 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
       ? AbortSignal.timeout(timeoutMs)
       : null;
 
-    const res = await fetch(`https://${host}${apiPath}`, {
-      method,
-      headers: {
-        ...headerMap,
-        Authorization: authorization
-      },
-      body: payload,
-      signal: timeoutSignal || undefined
-    });
-    const text = await res.text();
-    const data = safeJsonParse(text, {});
-    if (!res.ok || data.Response?.Error) {
-      const errMsg = data.Response?.Error?.Message || `HTTP ${res.status}`;
-      const err = new Error(`腾讯云接口 ${action} 调用失败: ${errMsg}`);
-      err.code = 'TC_ERROR';
-      err.status = res.status;
-      err.data = data;
-      throw err;
-    }
-    return data.Response || data;
+  const res = await fetch(`https://${host}${apiPath}`, {
+    method,
+    headers: {
+      ...headerMap,
+      Authorization: authorization
+    },
+    body: payload,
+    signal: timeoutSignal || undefined
+  });
+  const text = await res.text();
+  const data = safeJsonParse<TC3Envelope>(text, {} as TC3Envelope);
+  if (!res.ok || data.Response?.Error) {
+    const errMsg = data.Response?.Error?.Message || `HTTP ${res.status}`;
+    const err = new Error(`腾讯云接口 ${action} 调用失败: ${errMsg}`) as TC3RuntimeError;
+    err.code = 'TC_ERROR';
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data.Response || data;
 }

@@ -1,8 +1,20 @@
 /**
- * src/config/tabs.js —— 左侧导航 Tab 定义（地区分布 作为第一个 Tab）
+ * src/config/tabs.ts —— 左侧导航 Tab 定义（地区分布 作为第一个 Tab）
  * icon: @vicons/ionicons5 组件名，由布局映射
  */
-export const TABS = [
+
+/** 导航 Tab 定义 */
+export interface TabDef {
+  key: string;
+  path: string;
+  label: string;
+  title: string;
+  /** @vicons/ionicons5 导出名（由布局层映射为组件） */
+  icon: string;
+  desc: string;
+}
+
+export const TABS: TabDef[] = [
   {
     key: 'region',
     path: '/region',
@@ -69,4 +81,4 @@ export const TABS = [
   }
 ];
 
-export const tabByPath = (p) => TABS.find((t) => t.path === p);
+export const tabByPath = (p: string): TabDef | undefined => TABS.find((t) => t.path === p);

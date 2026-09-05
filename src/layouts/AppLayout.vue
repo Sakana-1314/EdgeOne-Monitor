@@ -141,18 +141,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { h, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import type { Component } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { NIcon, useMessage } from 'naive-ui';
+import type { MenuOption } from 'naive-ui';
 import {
   EarthOutline, PulseOutline, StatsChartOutline, GitNetworkOutline, ShieldCheckmarkOutline,
   ConstructOutline, AlbumsOutline, TrophyOutline, MenuOutline, SunnyOutline, MoonOutline,
   RefreshOutline, PersonCircleOutline, LogOutOutline
 } from '@vicons/ionicons5';
-import { useAppStore } from '../store/app.js';
-import { useDashboardStore, RANGES, INTERVALS } from '../store/dashboard.js';
-import { TABS } from '../config/tabs.js';
+import { useAppStore } from '../store/app';
+import { useDashboardStore, RANGES, INTERVALS } from '../store/dashboard';
+import { TABS } from '../config/tabs';
+import type { TabDef } from '../config/tabs';
 
 const router = useRouter();
 const route = useRoute();
@@ -162,43 +165,43 @@ const message = useMessage();
 
 /* ---------- 响应式 ---------- */
 const isMobile = ref(false);
-function checkMobile() {
+function checkMobile(): void {
   isMobile.value = window.matchMedia('(max-width: 900px)').matches;
 }
-let mq;
-function bindMq() {
+let mq: MediaQueryList | null = null;
+function bindMq(): void {
   mq = window.matchMedia('(max-width: 900px)');
   mq.addEventListener('change', checkMobile);
 }
 onMounted(() => {
   checkMobile();
   bindMq();
-  if (app.isLoggedIn) dash.loadZones();
+  if (app.isLoggedIn) void dash.loadZones();
 });
 onBeforeUnmount(() => mq && mq.removeEventListener('change', checkMobile));
 
 /* ---------- 菜单 ---------- */
-const ICONS = {
+const ICONS: Record<string, Component> = {
   EarthOutline, PulseOutline, StatsChartOutline, GitNetworkOutline, ShieldCheckmarkOutline,
   ConstructOutline, AlbumsOutline, TrophyOutline
 };
-const menuOptions = TABS.map((t) => ({
+const menuOptions: MenuOption[] = TABS.map((t) => ({
   label: t.label,
   key: t.path,
   icon: () => h(NIcon, { component: ICONS[t.icon] })
 }));
-const activeKey = computed(() => {
+const activeKey = computed<string>(() => {
   const hit = TABS.find((t) => route.path.startsWith(t.path));
   return hit ? hit.path : '/region';
 });
-const currentTab = computed(() => TABS.find((t) => t.path === activeKey.value));
+const currentTab = computed<TabDef | undefined>(() => TABS.find((t) => t.path === activeKey.value));
 
-function onMenu(key) {
-  if (route.path !== key) router.push(key);
+function onMenu(key: string): void {
+  if (route.path !== key) void router.push(key);
 }
-function onMenuMobile(key) {
+function onMenuMobile(key: string): void {
   drawerOpen.value = false;
-  if (route.path !== key) router.push(key);
+  if (route.path !== key) void router.push(key);
 }
 
 /* ---------- 工具栏 ---------- */
@@ -214,10 +217,10 @@ const autoOptions = [
 ];
 const zoneOptions = computed(() => dash.zonesWithAll.map((z) => ({ label: z.name, value: z.id })));
 /** 站点下拉仅在真实站点数 >1 时显示（受限/单站点/未加载时隐藏） */
-const zonePicker = computed(() => dash.zones.length > 1);
+const zonePicker = computed<boolean>(() => dash.zones.length > 1);
 const lastTime = ref('--:--:--');
 
-function onRange() {
+function onRange(): void {
   if (dash.rangeKey === 'custom') {
     openCustomOnce();
     return;
@@ -225,45 +228,50 @@ function onRange() {
   dash.persist();
   dash.bump();
 }
-function onInterval() {
+function onInterval(): void {
   dash.persist();
   dash.bump();
 }
-function onZone() {
+function onZone(): void {
   dash.persist();
   dash.bump();
 }
 
 /* 自定义时间范围 */
+interface CustomDurForm {
+  d: number;
+  h: number;
+  m: number;
+}
 const showCustom = ref(false);
-const customForm = ref({ d: 0, h: 0, m: 0 });
-function openCustomOnce() {
+const customForm = ref<CustomDurForm>({ d: 0, h: 0, m: 0 });
+function openCustomOnce(): void {
   customForm.value = { ...dash.custom };
   showCustom.value = true;
 }
-const customDurText = computed(() => {
-  const c = customForm.value || {};
+const customDurText = computed<string>(() => {
+  const c = customForm.value;
   const ms = ((c.d * 24 + (c.h || 0)) * 60 + (c.m || 0)) * 60000;
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
   const m = Math.round((ms % 3600000) / 60000);
-  const parts = [];
+  const parts: string[] = [];
   if (d) parts.push(`${d} 天`);
   if (h) parts.push(`${h} 小时`);
   if (m || !parts.length) parts.push(`${m} 分钟`);
   return parts.join(' ');
 });
-function applyCustom() {
+function applyCustom(): void {
   dash.applyCustom({ ...customForm.value });
   showCustom.value = false;
 }
 
 /* 自动刷新 */
-let timer = null;
+let timer: ReturnType<typeof setInterval> | null = null;
 watch(
   () => dash.autoRefresh,
   (v) => {
-    clearInterval(timer);
+    if (timer) clearInterval(timer);
     if (v > 0) timer = setInterval(() => dash.bump(), v * 1000);
   },
   { immediate: true }
@@ -273,25 +281,27 @@ watch(
   (v) => {
     if (v) {
       const d = new Date(v);
-      const p = (x) => String(x).padStart(2, '0');
+      const p = (x: number): string => String(x).padStart(2, '0');
       lastTime.value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     }
   },
   { immediate: true }
 );
-onBeforeUnmount(() => clearInterval(timer));
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer);
+});
 
 /* 用户菜单 */
 const userMenuOptions = [
   { label: 'admin（管理员）', key: 'who', disabled: true },
-  { type: 'divider', key: 'd1' },
+  { type: 'divider' as const, key: 'd1' },
   { label: '退出登录', key: 'logout', icon: () => h(NIcon, { component: LogOutOutline }) }
 ];
-function onUserMenu(key) {
+function onUserMenu(key: string): void {
   if (key === 'logout') {
     app.logout();
     message.success('已退出登录');
-    router.push('/login');
+    void router.push('/login');
   }
 }
 
@@ -299,7 +309,7 @@ function onUserMenu(key) {
 watch(
   () => app.isLoggedIn,
   (v) => {
-    if (v) dash.loadZones();
+    if (v) void dash.loadZones();
   }
 );
 </script>

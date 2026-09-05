@@ -14,12 +14,27 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  options: { type: Array, default: () => [] }, // [{ label, value }]
-  modelValue: { type: [String, Number], default: '' }
-});
-defineEmits(['update:modelValue']);
+<script setup lang="ts">
+/** 分段选项 */
+interface SegOption {
+  label: string;
+  value: string | number;
+}
+
+const props = withDefaults(
+  defineProps<{
+    options?: SegOption[];
+    modelValue?: string | number;
+  }>(),
+  {
+    options: () => [],
+    modelValue: ''
+  }
+);
+
+defineEmits<{
+  (e: 'update:modelValue', value: string | number): void;
+}>();
 </script>
 
 <style scoped>

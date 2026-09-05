@@ -6,19 +6,32 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
 import EChart from './EChart.vue';
-import { ensureMaps, buildMapOption } from '../utils/chart.js';
+import { ensureMaps, buildMapOption } from '../utils/chart';
+import type { MapDatum } from '../utils/chart';
+import type { MetricUnit } from '../types/model';
+import { errText } from '../utils/format';
 
-const props = defineProps({
-  mapName: { type: String, default: 'world' }, // world | china
-  rows: { type: Array, default: () => [] }, // [{ name, value }]
-  dark: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
-  height: { type: [String, Number], default: 420 },
-  unit: { type: String, default: 'count' }
-});
+const props = withDefaults(
+  defineProps<{
+    mapName?: 'world' | 'china';
+    rows?: MapDatum[];
+    dark?: boolean;
+    loading?: boolean;
+    height?: string | number;
+    unit?: MetricUnit;
+  }>(),
+  {
+    mapName: 'world',
+    rows: () => [],
+    dark: false,
+    loading: false,
+    height: 420,
+    unit: 'count'
+  }
+);
 
 const ready = ref(false);
 const mapError = ref('');
@@ -28,7 +41,7 @@ onMounted(async () => {
     await ensureMaps();
     ready.value = true;
   } catch (e) {
-    mapError.value = '地图数据加载失败：' + e.message;
+    mapError.value = '地图数据加载失败：' + errText(e);
   }
 });
 

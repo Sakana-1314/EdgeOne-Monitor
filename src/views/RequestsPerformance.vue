@@ -24,33 +24,33 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import KpiCard from '../components/KpiCard.vue';
 import PanelCard from '../components/PanelCard.vue';
 import EChart from '../components/EChart.vue';
-import { useMetrics } from '../composables/useMetrics.js';
-import { useAppStore } from '../store/app.js';
-import { meta, kpiOf } from '../config/metrics.js';
-import { formatKpi, growthPct } from '../utils/format.js';
-import { seriesFrom } from '../utils/series.js';
-import { buildTrendOption } from '../utils/chart.js';
+import { useMetrics } from '../composables/useMetrics';
+import { useAppStore } from '../store/app';
+import { meta, kpiOf } from '../config/metrics';
+import { formatKpi, growthPct } from '../utils/format';
+import { seriesFrom } from '../utils/series';
+import { buildTrendOption } from '../utils/chart';
 
 const app = useAppStore();
 const ids = ['l7Flow_request', 'l7Flow_avgResponseTime', 'l7Flow_avgFirstByteResponseTime'];
 const { data, loading } = useMetrics(ids, { compare: true });
 
-function tipOf(id) {
+function tipOf(id: string): string {
   if (id === 'l7Flow_request') return '该时间范围内的总请求数';
   if (id === 'l7Flow_avgResponseTime') return '从发起请求到收到完整响应的时间';
   return '从发起请求到收到响应首字节的时间';
 }
 
-function text(id) {
+function text(id: string): string {
   const { cur, unit } = kpiOf(data[id], id);
   return formatKpi(cur, unit);
 }
-function grow(id) {
+function grow(id: string): number | null {
   const { cur, prev } = kpiOf(data[id], id);
   if (cur == null || prev == null) return null;
   return growthPct(cur, prev);
