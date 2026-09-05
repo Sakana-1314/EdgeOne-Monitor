@@ -1,109 +1,94 @@
-# EdgeOne 监控大屏（v2）
+# EdgeOne 监控大屏（EdgeOne Pages 规范版）
 
-> 在参考 [afoim/eo_monitor](https://github.com/afoim/eo_monitor) 的基础上重构的**更高阶** EdgeOne 实时监控大屏。
-> 前端 Vue3 + VueRouter + Vite + NaiveUI + ECharts；后端全部运行于 **边缘函数 / Pages Function**（零第三方依赖）。
+> 参考 [afoim/eo_monitor](https://github.com/afoim/eo_monitor) 重构的 EdgeOne 实时监控大屏。
+> 前端 Vue3 + VueRouter + Vite + NaiveUI + ECharts；后端按 **腾讯云 EdgeOne Pages Functions（边缘函数）规范** 编写，**仅接入真实腾讯云 EdgeOne 数据**（无演示/模拟模式）。
+
+## 特性
 
 - ✅ **地区分布为第一个 Tab**：全球请求/流量地图、中国省份地图、国家与省份排行，与参考项目一一对应
-- ✅ 桌面端**左侧 Tab** 布局 + 移动端**响应式**（抽屉导航、单列自适应）
-- ✅ **深色 / 浅色** 模式（跟随系统 / 手动切换）
-- ✅ **登录鉴权**：账号固定 `admin`，密码由 `ADMIN_PASSWORD` 指定；登录后签发 **有效期 7 天** 的 **JWT**（`JWT_SECRET` 配置）
-- ✅ 时间范围（近30分钟~近31天 + **自定义**）、数据粒度（自动/1分钟/5分钟/1小时/1天）、站点选择、自动刷新
-- ✅ 无腾讯云凭据时自动进入**演示数据模式**，界面全功能可预览
+- ✅ 桌面端**左侧 Tab** + 移动端**响应式**（抽屉导航、单列自适应）
+- ✅ **深色 / 浅色**模式（跟随系统 / 手动切换）
+- ✅ **登录鉴权**：账号固定 `admin`，密码 `ADMIN_PASSWORD`；签发 **7 天有效期 JWT**（`JWT_SECRET`）
+- ✅ 时间范围（近30分钟~近31天 + 自定义）、粒度、站点选择、自动刷新、环比
+- ✅ 界面 Tab：地区分布 / 流量与带宽 / 请求与性能 / 回源分析 / 安全防护 / 边缘函数 / Pages 应用 / TOP 排行
 
-## 界面总览
+## 目录（遵循 EdgeOne Pages 规范）
 
-| Tab | 内容 |
-| --- | --- |
-| 地区分布 | 全球请求/流量地图、中国省份地图、国家/省份流量与请求排行 |
-| 流量与带宽 | 总/入/出 流量与带宽趋势、KPI + 环比 |
-| 请求与性能 | 请求数、平均响应耗时、平均首字节耗时 |
-| 回源分析 | 回源流量/带宽/请求数趋势、缓存命中率 |
-| 安全防护 | DDoS/CC：精确/托管/速率限制拦截（自动按 14 天截取） |
-| 边缘函数 | Edge Functions 请求数与 CPU 耗时 |
-| Pages 应用 | 构建次数、Cloud Functions 请求数/GBs、月度进度 |
-| TOP 排行 | 状态码/域名/URL/资源类型/客户端IP/Referer/设备/浏览器/OS/UA（流量·请求双维度） |
-
-## 技术栈
-
-- **前端**：Vue 3 `<script setup>` + Vue Router（hash 路由，便于静态部署）+ Pinia + Naive UI + ECharts 5
-- **后端（边缘函数）**：`export default { fetch(request, env) }` Worker 风格，纯 WebCrypto + fetch，**无 npm 依赖**，
-  可在 EdgeOne 边缘函数 / Pages Function / 任意 Node 环境运行同一份代码
-- **真实数据源**：`edge/tc3.js` 手写腾讯云 TC3-HMAC-SHA256 签名，直连 `teo.tencentcloudapi.com`
-- **部署形态**：EdgeOne Pages（静态站点 + `functions/api/[[path]].js`）
-
-## 快速开始（本地）
-
-要求 Node ≥ 18。
-
-```bash
-pnpm install
-cp .env.example .env       # 默认 ADMIN_PASSWORD=admin，DATA_MODE=auto（无凭据自动演示数据）
-pnpm dev                   # 开发模式: http://127.0.0.1:5173 （/api 代理到本地 API 8787）
-
-# 或者：构建 + 单端口预览
-pnpm build
-pnpm preview               # http://127.0.0.1:8088  (dist 静态 + /api 边缘函数同一进程)
+```
+EdgeOne-Monitor/
+├── functions/                  # EdgeOne Pages Functions（后端 = 边缘函数）
+│   ├── api/
+│   │   └── [[default]].js      #   /api/** 统一入口（onRequestGet/Post/Options，Function Handlers）
+│   └── lib/                    #   函数内共享模块（随 /functions 一起被平台打包）
+│       ├── router.js           #   路由 + 鉴权（JWT）+ 业务
+│       ├── jwt.js              #   HS256 签发/校验（WebCrypto）
+│       ├── tc3.js              #   腾讯云 API TC3-HMAC-SHA256 签名客户端
+│       ├── teo.js              #   EdgeOne 数据接口封装（时序/TOP/安全/函数/Pages）
+│       ├── registry.js         #   指标注册表（kind/unit + 接口路由）
+│       └── utils.js            #   base64url / sha256 / hmac 等工具
+├── src/                        # Vue3 前端源码（Vite）
+├── public/                     # 静态资源（ECharts 世界/中国地图 geojson）
+├── index.html                  # Vite 入口（模板与官方 vite-vue3 一致）
+├── vite.config.js              # 构建到 dist/，/api 本地代理
+├── server/index.mjs            # 本地 Pages Function 模拟（node http）
+├── scripts/dev.mjs             # pnpm dev（Vite 5173 + API 8787）
+└── package.json  pnpm-workspace.yaml  .env.example
 ```
 
-浏览器打开后：账号 `admin`，密码见 `.env` 的 `ADMIN_PASSWORD`（演示默认 `admin`）。
+- **Pages Functions 路由**：`/functions/api/[[default]].js` 匹配 `/api/**`，未匹配则回落到 Pages 静态资源。
+- **Handlers 规范**：文件导出 `onRequestGet / onRequestPost / onRequestOptions`，入参为 EventContext（`request / params / env / waitUntil`）。
+- **环境变量**：运行时经 `context.env` 读取，即 Pages 项目「环境变量」中的配置。
+- **零第三方依赖**：仅用 WebCrypto + fetch，天然可运行于边缘函数（V8）运行时。
 
-> 若使用 pnpm ≥ 10 且命中"忽略构建脚本"提示，已在 `pnpm-workspace.yaml` 配置
-> `verifyDepsBeforeRun: false` 与 `onlyBuiltDependencies`，`pnpm run *` 可直接使用。
+## 本地开发
 
-## 配置（环境变量）
+要求 Node ≥ 18，`.env` 配置 `ADMIN_PASSWORD`、`JWT_SECRET` 与 `SECRET_ID`、`SECRET_KEY`：
+
+```bash
+cp .env.example .env
+pnpm install
+pnpm dev        # 开发模式  http://127.0.0.1:5173  （/api 代理到本地函数 8787）
+
+pnpm build && pnpm serve   # 单端口预览 http://127.0.0.1:8088 （dist 静态 + /api 函数）
+```
+
+> 说明：数据接口依赖腾讯云凭据，未配置 `SECRET_ID/SECRET_KEY` 时登录可用、数据接口返回 503，前端会给出配置提示。项目**不含任何模拟数据源**。
+
+## 环境变量
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `ADMIN_PASSWORD` | 是 | 登录密码（账号固定 `admin`） |
-| `JWT_SECRET` | 是 | JWT 签名密钥，建议 `openssl rand -hex 32` |
-| `TOKEN_TTL_DAYS` | 否 | Token 有效期（天），默认 `7` |
-| `SITE_NAME` / `SITE_ICON` | 否 | 站点标题 / 图标 |
-| `SECRET_ID` / `SECRET_KEY` | 否 | 腾讯云密钥（仅需 `QcloudTEOReadOnlyaccess`）；缺省时进入演示模式 |
+| `JWT_SECRET` | 是 | JWT 签名密钥（`openssl rand -hex 32`） |
+| `TOKEN_TTL_DAYS` | 否 | Token 有效期（天），默认 7 |
+| `SECRET_ID` / `SECRET_KEY` | 是 | 腾讯云密钥（`QcloudTEOReadOnlyaccess` 只读权限） |
 | `TEO_ENDPOINT` / `TEO_REGION` | 否 | 默认 `teo.tencentcloudapi.com` / `ap-guangzhou` |
-| `DATA_MODE` | 否 | `auto`（默认）/ `real` / `mock` |
-| `PORT` | 否 | 本地服务端口（默认 8088） |
+| `SITE_NAME` / `SITE_ICON` | 否 | 站点标题 / 图标 |
 
-## 部署到 EdgeOne Pages
+## 部署到腾讯云 EdgeOne Pages
 
-1. `pnpm build` 生成 `dist/`
-2. 把仓库推送到 GitHub，在 EdgeOne Pages 创建项目并连接
-   - 静态根目录填 `dist`
-   - Pages 函数目录 `functions`（`functions/api/[[path]].js` 会接管 `/api/*`）
-3. 在环境变量里配置 `ADMIN_PASSWORD`、`JWT_SECRET`、`SECRET_ID`、`SECRET_KEY` 等
-4. 也可把 `functions/` 中的处理逻辑按"边缘函数"独立发布（`edge/handler.js` 默认导出 `fetch`）
+1. `pnpm build` 产出 `dist/`
+2. 将仓库推送到 GitHub，在 EdgeOne Pages 控制台「导入 Git 仓库」创建项目
+3. 项目设置：
+   - 构建命令：`pnpm build`（或 `npm run build`）
+   - 输出目录：`dist`
+   - 根目录：仓库根目录 `./`（Pages Functions 固定读取 `/functions`）
+4. 在「环境变量」中配置：`ADMIN_PASSWORD`、`JWT_SECRET`、`SECRET_ID`、`SECRET_KEY` 等
+5. 提交触发自动构建部署；`/api/**` 由 Pages Function 处理，其余为静态站点
 
-## 目录结构
+> 本仓库仅把 `.env.example` 提交到远端，真实密钥请在 Pages 控制台环境变量中配置，不进入代码仓库。
 
-```
-edge/                 # 后端(边缘函数)：鉴权/JWT、TC3 签名、EdgeOne 封装、演示数据生成
-  api.js              #   路由 + 鉴权中间件
-  jwt.js              #   HS256 JWT 签发/校验(WebCrypto)
-  tc3.js              #   腾讯云 TC3 签名客户端
-  teo.js              #   真实数据 Provider(归一化)
-  mock/               #   演示数据 Provider
-  provider.js         #   数据源切换 auto/real/mock
-functions/api/[[path]].js  # EdgeOne Pages Function 适配入口
-server/index.mjs      # 本地单端口服务（静态 + /api）
-scripts/dev.mjs       # 开发模式编排（Vite 5173 + API 8787）
-public/geo/           # ECharts 世界/中国地图 geojson
-src/                  # Vue3 前端
-  layouts/            #   桌面左侧 Tab / 移动抽屉布局、全局工具条
-  views/              #   Login + 8 个功能 Tab
-  components/         #   EChart/PanelCard/KpiCard/TopRankList/GeoMap/Segmented
-  composables/        #   useMetrics / useLoader（跟随全局查询自动刷新）
-  store/              #   app(主题/登录) + dashboard(时间/粒度/站点/自动刷新)
-  api/ utils/ config/ styles/
-```
+## 鉴权与接口
 
-## 鉴权说明
+- `POST /api/auth/login { username, password }` → 返回 7 天有效 JWT
+- 其余接口需 `Authorization: Bearer <token>`；401 时前端自动登出并跳转登录
+- `GET /api/config`、`GET /api/health` 为公开接口，`/api/config` 返回 `configured` 用于前端展示凭据状态
+- 数据接口：`/api/zones`、`/api/metrics?names=...&startTime&endTime&interval&zoneId&compare`、`/api/pages/*`
+- JWT 验签与密码比较均为常量时间比较，防止时序侧信道
 
-- 登录 `POST /api/auth/login {username,password}` → 签发 `HS256` JWT，有效期 7 天
-- 除 `/api/config`、`/api/health`、`/api/auth/login` 外的接口都需要 `Authorization: Bearer <token>`
-- 前端把 token 存于 `localStorage`；任一接口返回 401 会自动清凭证并跳回登录页
-- 密码比较与 JWT 验签均采用常量时间比较，防止时序侧信道
+## 参考资料
 
-## 安全 / 说明
-
-- 演示数据为**确定性随机**生成（随时间平滑、按站点缩放、24h 日内波动），用于无凭据时的效果预览
-- 真实数据接口返回已归一化结构（`time`/`top` 两类），前端对 mock 与 real 无差别使用
-- 安全类指标仅支持 14 天内数据，前端自动截取并提示
+- [EdgeOne Pages Functions 官方文档](https://edgeone.cloud.tencent.com/pages/document/162936866445025280)
+- [EdgeOne Pages 构建指南](https://pages.edgeone.ai/zh/document/build-guide)
+- [EdgeOne 官方模板 pages-templates](https://github.com/TencentEdgeOne/pages-templates)
+- [EdgeOne Pages Functions 示例 functions-geolocation](https://github.com/TencentEdgeOne/pages-templates/tree/main/examples/functions-geolocation)

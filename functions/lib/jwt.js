@@ -1,9 +1,9 @@
 /**
- * edge/jwt.js
+ * functions/lib/jwt.js
  * HS256 JWT 签发 / 校验，零依赖，基于 WebCrypto。
  */
 
-import { bytesToBase64Url, base64UrlToBytes, hmacSha256, safeEqualStr } from './util.js';
+import { bytesToBase64Url, base64UrlToBytes, hmacSha256, safeEqualStr } from './utils.js';
 
 function b64url(str) {
   return bytesToBase64Url(new TextEncoder().encode(str));

@@ -1,20 +1,20 @@
 /**
- * server/index.mjs —— 本地运行 / 预览 服务
+ * server/index.mjs —— 本地运行 / 预览 服务（模拟 EdgeOne `pages dev`）
  *
- * 复用 edge/handler.js 的同一份后端逻辑，Node 原生 http 实现：
- *   - /api/*           交给边缘函数 handleFetch
+ * 与线上一致地调用 functions/ 下的官方 Pages Function 入口：
+ *   - /api/*           由 functions/api/[[default]].js 的 onRequestGet/Post/Options 处理
  *   - 其余路径         若存在 dist/ 则作为静态站点返回（用于生产预览）
  *
  * 用法：
  *   node server/index.mjs --serve --port 8088   # 同时托管构建产物 dist
- *   node server/index.mjs --port 8787           # 仅 API（配合 vite dev 代理）
+ *   node server/index.mjs --port 8787           # 仅 API（配合 pnpm dev 的 Vite 代理）
  */
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleFetch } from '../edge/handler.js';
+import { onRequestGet, onRequestPost, onRequestOptions } from '../functions/api/[[default]].js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -79,10 +79,25 @@ function readBody(req) {
   });
 }
 
+/** 按 HTTP 方法调用 functions 入口（与线上 Pages Functions 一致） */
+async function invokePagesFunction(webReq) {
+  const env = { ...process.env };
+  const context = { request: webReq, env, params: {}, waitUntil: () => {} };
+  switch (webReq.method) {
+    case 'GET':
+      return onRequestGet(context);
+    case 'POST':
+      return onRequestPost(context);
+    case 'OPTIONS':
+      return onRequestOptions(context);
+    default:
+      return new Response('Method Not Allowed', { status: 405 });
+  }
+}
+
 function sendStatic(req, res, filePath) {
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    // SPA fallback 到 index.html（本项目使用 hash 路由，通常不需要）
-    if (filePath.endsWith('index.html') || !filePath.includes('.')) {
+    if (filePath.endsWith('index.html') || !path.extname(filePath)) {
       const idx = path.join(DIST, 'index.html');
       if (fs.existsSync(idx)) {
         res.writeHead(200, { 'content-type': MIME['.html'] });
@@ -99,17 +114,13 @@ function sendStatic(req, res, filePath) {
 
 const server = http.createServer(async (req, res) => {
   const urlPath = new URL(req.url, 'http://x').pathname;
-
   try {
     if (urlPath.startsWith('/api')) {
       const body = await readBody(req);
-      const webReq = toWebRequest(req, body);
-      const webRes = await handleFetch(webReq, { ...process.env });
+      const webRes = await invokePagesFunction(toWebRequest(req, body));
       res.writeHead(webRes.status, Object.fromEntries(webRes.headers));
-      const buf = Buffer.from(await webRes.arrayBuffer());
-      return res.end(buf);
+      return res.end(Buffer.from(await webRes.arrayBuffer()));
     }
-    // 静态资源
     if (serveStatic) {
       let rel = decodeURIComponent(urlPath);
       if (rel === '/' || rel === '') rel = '/index.html';
@@ -121,7 +132,9 @@ const server = http.createServer(async (req, res) => {
       return sendStatic(req, res, file);
     }
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end(`EdgeOne 监控大屏 API 服务运行中（${urlPath}）。使用 pnpm dev 启动开发模式，或 pnpm build && pnpm serve 启动完整预览。`);
+    res.end(
+      'EdgeOne 监控大屏 Pages Functions 本地服务运行中。使用 pnpm dev 启动开发模式，或 pnpm build && pnpm serve 启动完整预览。'
+    );
   } catch (e) {
     res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Server Error: ' + (e && e.message));
@@ -129,14 +142,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  const mode = resolveMode();
-  console.log(`[EdgeOne 监控大屏] ${serveStatic ? '预览(静态+API)' : 'API'} 服务: http://127.0.0.1:${PORT}  数据源: ${mode}`);
+  const configured = process.env.SECRET_ID && process.env.SECRET_KEY ? '是' : '否（仅配置了鉴权，数据需 SECRET_ID/SECRET_KEY）';
+  console.log(`[EdgeOne 监控大屏] ${serveStatic ? '预览(静态+API)' : 'API'} 服务: http://127.0.0.1:${PORT}  已配置腾讯云凭据: ${configured}`);
 });
-
-function resolveMode() {
-  const hasCred = process.env.SECRET_ID && process.env.SECRET_KEY;
-  const m = (process.env.DATA_MODE || 'auto').toLowerCase();
-  if (m === 'real') return 'real(腾讯云 EdgeOne)';
-  if (m === 'mock') return 'mock(演示数据)';
-  return hasCred ? 'real(腾讯云 EdgeOne)' : 'mock(演示数据，未配置 SECRET_ID/SECRET_KEY)';
-}

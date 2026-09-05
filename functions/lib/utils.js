@@ -1,5 +1,5 @@
 /**
- * edge/util.js
+ * functions/lib/utils.js
  * 通用小工具：base64url / sha256 / HMAC —— 全部基于 WebCrypto，可运行于边缘函数与 Node 端。
  * 零第三方依赖。
  */

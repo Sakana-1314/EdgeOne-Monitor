@@ -1,6 +1,6 @@
 /**
  * src/config/geo.js —— 国家/省份编码中文名映射 + 地图名称对齐
- * （与 edge/maps.js 语义一致，前端本地展示用）
+ * （映射腾讯云 EdgeOne 返回的地区编码，供地图与排行展示用）
  */
 
 export const countryName = {

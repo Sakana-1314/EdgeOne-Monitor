@@ -1,9 +1,9 @@
 /**
- * edge/teo.js —— 腾讯云 EdgeOne “真实数据” Provider
+ * functions/lib/teo.js —— 腾讯云 EdgeOne 数据接口封装（TC3 签名直连）
  * 基于 fetch + TC3 签名直连 EdgeOne 开放接口，可运行于边缘函数 / Pages Function / Node。
  *
  * 说明：真实模式需要环境变量 SECRET_ID / SECRET_KEY（仅需 EdgeOne 只读权限）。
- * 所有方法均返回“已归一化”的结构（见 normalize 模块），与演示数据 Provider 一致。
+ * 所有方法均返回“已归一化”的结构，供 Pages Functions 路由直接使用。
  */
 
 import { requestTC3 } from './tc3.js';
@@ -187,7 +187,7 @@ const findNum = (...keys) => {
   return 0;
 };
 
-/** Pages 构建统计（演示模式数据形状见 mock） */
+/** Pages 构建统计 */
 export async function fetchPagesBuild(env, zoneId) {
   const res = parsePagesResult(
     await callPagesInterface(env, zoneId, 'pages:DescribePagesDeploymentUsage', '{}')

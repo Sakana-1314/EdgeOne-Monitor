@@ -17,8 +17,8 @@ export const useAppStore = defineStore('app', {
     siteName: 'EdgeOne 监控大屏',
     siteIcon: '',
     version: '',
-    demo: true,
-    mode: 'mock',
+    configured: false,
+    credentialHint: '',
     token: getToken(),
     user: null,
     booted: false,
@@ -64,8 +64,8 @@ export const useAppStore = defineStore('app', {
         this.siteName = data.siteName || this.siteName;
         this.siteIcon = data.siteIcon || '';
         this.version = data.version;
-        this.demo = Boolean(data.demo);
-        this.mode = data.mode || 'mock';
+        this.configured = Boolean(data.configured);
+        this.credentialHint = data.credentialHint || '';
       } catch (e) {
         this.bootError = e.message;
       } finally {

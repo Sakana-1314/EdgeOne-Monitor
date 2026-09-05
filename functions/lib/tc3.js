@@ -1,12 +1,12 @@
 /**
- * edge/tc3.js
+ * functions/lib/tc3.js
  * 腾讯云 API 3.0 (TC3-HMAC-SHA256) 签名客户端，基于 WebCrypto + fetch，零第三方依赖，
  * 同时可在 边缘函数 / Pages Function / Node 环境运行。
  *
  * 参考: https://cloud.tencent.com/document/product/1278/85305
  */
 
-import { sha256Hex, hmacSha256Hex, safeJsonParse } from './util.js';
+import { sha256Hex, hmacSha256Hex, safeJsonParse } from './utils.js';
 
 function canonicalHeaders(headerMap) {
   return Object.keys(headerMap)
@@ -23,30 +23,21 @@ function signedHeaders(headerMap) {
 }
 
 /**
- * 对腾讯云 endpoint 发起一次 TC3 签名请求
- * @param {object}   env      { SECRET_ID, SECRET_KEY, TEO_ENDPOINT, TEO_REGION }
- * @param {string}   action   接口名，如 DescribeTimingL7AnalysisData
- * @param {object}   params   请求体
- * @param {object}   opts     { version, path, timeout }
- * @returns {Promise<any>}    返回 Response 里的业务字段（含 RequestId 等）
+ * 计算 TC3 签名（可独立测试）。返回签名所需的各部分。
  */
-export async function requestTC3(env, action, params = {}, opts = {}) {
-  const secretId = env.SECRET_ID;
-  const secretKey = env.SECRET_KEY;
-  if (!secretId || !secretKey) {
-    const err = new Error('缺少腾讯云凭据 SECRET_ID / SECRET_KEY');
-    err.code = 'NO_CREDENTIAL';
-    throw err;
-  }
-
+export async function buildTC3({
+  secretId,
+  secretKey,
+  action,
+  params = {},
+  version = '2022-09-01',
+  host = 'teo.tencentcloudapi.com',
+  region = 'ap-guangzhou',
+  path = '/',
+  now = new Date()
+}) {
   const service = 'teo';
-  const version = opts.version || '2022-09-01';
-  const host = (env.TEO_ENDPOINT || 'teo.tencentcloudapi.com').replace(/^https?:\/\//, '');
-  const region = env.TEO_REGION || 'ap-guangzhou';
-  const path = opts.path || '/';
   const method = 'POST';
-
-  const now = new Date();
   const timestamp = Math.floor(now.getTime() / 1000);
   const date = now.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
   const payload = JSON.stringify(params);
@@ -85,6 +76,39 @@ export async function requestTC3(env, action, params = {}, opts = {}) {
   const authorization =
     `TC3-HMAC-SHA256 Credential=${secretId}/${date}/${service}/tc3_request, ` +
     `SignedHeaders=${signedHeaders(headerMap)}, Signature=${signature}`;
+
+  return { timestamp, date, authorization, payload, headerMap };
+}
+
+/**
+ * 对腾讯云 endpoint 发起一次 TC3 签名请求
+ * @param {object}   env      { SECRET_ID, SECRET_KEY, TEO_ENDPOINT, TEO_REGION }
+ * @param {string}   action   接口名，如 DescribeTimingL7AnalysisData
+ * @param {object}   params   请求体
+ * @param {object}   opts     { version, path, timeout, now }
+ * @returns {Promise<any>}    返回 Response 里的业务字段（含 RequestId 等）
+ */
+export async function requestTC3(env, action, params = {}, opts = {}) {
+  const secretId = env.SECRET_ID;
+  const secretKey = env.SECRET_KEY;
+  if (!secretId || !secretKey) {
+    const err = new Error('缺少腾讯云凭据 SECRET_ID / SECRET_KEY');
+    err.code = 'NO_CREDENTIAL';
+    throw err;
+  }
+
+  const host = (env.TEO_ENDPOINT || 'teo.tencentcloudapi.com').replace(/^https?:\/\//, '');
+  const { authorization, headerMap, payload } = await buildTC3({
+    secretId,
+    secretKey,
+    action,
+    params,
+    version: opts.version,
+    host,
+    region: env.TEO_REGION,
+    path: opts.path,
+    now: opts.now
+  });
 
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller && setTimeout(() => controller.abort(), opts.timeout || 15000);
