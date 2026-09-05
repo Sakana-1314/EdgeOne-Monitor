@@ -60,16 +60,16 @@ const growthClass = computed(() => {
 .kpi-card {
   position: relative;
   padding: 14px 16px 12px;
-  border-radius: 10px;
-  background: var(--eo-kpi-bg, transparent);
+  border-radius: var(--eo-radius, 6px);
+  background: var(--eo-card);
   border: 1px solid var(--eo-border, rgba(128, 128, 128, 0.15));
   height: 100%;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, background-color 0.2s, border-color 0.2s;
 }
 .kpi-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(1, 4, 9, 0.12);
 }
 .kpi-top {
   display: flex;
@@ -129,17 +129,18 @@ const growthClass = computed(() => {
   padding: 1px 8px;
   border-radius: 999px;
 }
+/* 与主题 success/error 变量对齐（用半透明底色弱化） */
 .kpi-growth-badge.good {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.12);
+  color: var(--eo-success, #16a34a);
+  background: color-mix(in srgb, var(--eo-success, #16a34a) 14%, transparent);
 }
 .kpi-growth-badge.bad {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.12);
+  color: var(--eo-error, #dc2626);
+  background: color-mix(in srgb, var(--eo-error, #dc2626) 14%, transparent);
 }
 .kpi-growth-badge.flat {
   color: var(--eo-text-3);
-  background: rgba(128, 128, 128, 0.12);
+  background: color-mix(in srgb, var(--eo-text-3) 14%, transparent);
 }
 .kpi-sub {
   margin-top: 10px;
@@ -149,6 +150,6 @@ const growthClass = computed(() => {
 .kpi-error {
   margin-top: 8px;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--eo-error, #dc2626);
 }
 </style>

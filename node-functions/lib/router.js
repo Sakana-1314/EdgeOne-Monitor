@@ -5,13 +5,12 @@
  * - 输入：标准 Web API Request + env（Node Functions 环境变量）
  * - 输出：标准 Response；数据源为腾讯云 EdgeOne 开放接口（TC3 签名直连）
  * - 站点限制：ALLOWED_ZONE_IDS（空 = 不限），未授权站点请求返回 403
- * - 域名限制：ALLOWED_DOMAINS（空 = 不限），domain / referers 等带主机名维度按白名单过滤
  */
 
 import { signToken, verifyToken } from './jwt.js';
 import { safeEqualStr, readJsonBody, formatUTCDate } from './utils.js';
 import { isValidMetric, normalizeTime, normalizeInterval, KIND } from './registry.js';
-import { allowedZones, allowedDomains, filterHostRows } from './allowlist.js';
+import { allowedZones } from './allowlist.js';
 import * as teo from './teo.js';
 
 const VERSION = '2.2.0';
@@ -248,21 +247,9 @@ async function handleMetrics(env, url) {
   win.zoneIds = authz.zones;
 
   const compare = ['1', 'true', 'yes'].includes((url.searchParams.get('compare') || '').toLowerCase());
-  const domAllowed = allowedDomains(env);
   try {
     let results = await teo.fetchMetrics(env, names, win);
     results = await withCompare(env, results, win, compare);
-
-    // 域名白名单：过滤带主机名维度（domain / referers）的 TOP 结果
-    if (domAllowed.length) {
-      for (const id of Object.keys(results)) {
-        const m = results[id];
-        if (!m || m.kind !== KIND.TOP) continue;
-        const dim = id.endsWith('_domain') ? 'domain' : id.endsWith('_referers') ? 'referers' : null;
-        if (dim && Array.isArray(m.data)) m.data = filterHostRows(m.data, dim, domAllowed);
-      }
-    }
-
     return json({
       code: 0,
       data: {

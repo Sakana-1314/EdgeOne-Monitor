@@ -29,6 +29,33 @@ export const INTERVALS = [
   { key: 'day', label: '1 天' }
 ];
 
+const STORE_KEY = 'eo_dash_state';
+
+const AUTO_VALUES = [0, 30, 60, 300];
+
+function clampInt(v, lo, hi) {
+  const n = Math.max(lo, Math.min(hi, Number(v) || lo));
+  return Math.round(n);
+}
+
+/** 读取本地记忆（只取合法值） */
+function loadPersisted() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {};
+    const out = {};
+    if (raw.rangeKey === 'custom' || RANGES.some((r) => r.key === raw.rangeKey)) out.rangeKey = raw.rangeKey;
+    if (INTERVALS.some((i) => i.key === raw.interval)) out.interval = raw.interval;
+    if (typeof raw.zoneId === 'string') out.zoneId = raw.zoneId;
+    if (AUTO_VALUES.includes(raw.autoRefresh)) out.autoRefresh = raw.autoRefresh;
+    if (raw.custom && Number.isFinite(raw.custom.d)) {
+      out.custom = { d: clampInt(raw.custom.d, 0, 31), h: clampInt(raw.custom.h, 0, 23), m: clampInt(raw.custom.m, 0, 59) };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 const DUR = {
   '30m': 30 * 60 * 1000,
   '1h': 3600 * 1000,
@@ -61,7 +88,8 @@ export const useDashboardStore = defineStore('dashboard', {
     zones: [],
     autoRefresh: 0, // 0=关闭；单位秒
     revision: 0,
-    refreshedAt: 0
+    refreshedAt: 0,
+    ...loadPersisted()
   }),
   getters: {
     rangeLabel(state) {
@@ -112,14 +140,26 @@ export const useDashboardStore = defineStore('dashboard', {
       this.revision += 1;
       this.refreshedAt = Date.now();
     },
+    persist() {
+      try {
+        localStorage.setItem(
+          STORE_KEY,
+          JSON.stringify({ rangeKey: this.rangeKey, interval: this.interval, zoneId: this.zoneId, autoRefresh: this.autoRefresh, custom: this.custom })
+        );
+      } catch {
+        /* 忽略（隐私模式等） */
+      }
+    },
     setRange(key) {
       if (!RANGES.find((r) => r.key === key)) return;
       this.rangeKey = key;
+      this.persist();
       this.bump();
     },
     applyCustom({ d = 0, h = 0, m = 0 }) {
       this.custom = { d: Math.max(0, d | 0), h: Math.max(0, h | 0), m: Math.max(0, m | 0) };
       this.rangeKey = 'custom';
+      this.persist();
       this.bump();
     },
     customDurMs() {
@@ -128,20 +168,28 @@ export const useDashboardStore = defineStore('dashboard', {
     },
     setInterval(iv) {
       this.interval = iv;
+      this.persist();
       this.bump();
     },
     setZone(id) {
       this.zoneId = id || '';
+      this.persist();
       this.bump();
     },
     setAutoRefresh(sec) {
       this.autoRefresh = Number(sec) || 0;
+      this.persist();
     },
     async loadZones() {
       if (!getToken()) return;
       try {
         const data = await api.zones();
         this.zones = (data.zones || []).map((z) => ({ id: z.id, name: z.name, area: z.area }));
+        // 记忆的站点已被移除/不在白名单时回退到「全部站点」
+        if (this.zoneId && !this.zones.some((z) => z.id === this.zoneId)) {
+          this.zoneId = '';
+          this.persist();
+        }
       } catch {
         /* 忽略：继续用空站点列表 */
       }

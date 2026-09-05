@@ -1,44 +1,46 @@
 /**
- * src/config/theme.js —— 主题令牌 + NaiveUI 覆盖
+ * src/config/theme.js —— 主题令牌（GitHub Primer 配色）+ NaiveUI 覆盖 + 小圆角
  */
 export const PALETTES = {
   light: {
-    bg: '#eef1f6',
-    card: '#ffffff',
-    border: 'rgba(15,23,42,0.08)',
-    text1: '#111827',
-    text2: '#4b5563',
-    text3: '#9aa3af',
-    fill1: '#f1f5f9',
-    hover: '#f8fafc',
-    primary: '#2f6bff',
-    primaryHover: '#5b8bff',
-    primaryPressed: '#1e4fd6',
-    info: '#2f6bff',
-    success: '#18a058',
-    warning: '#f0a020',
-    error: '#d03050'
+    bg: '#ffffff', // canvas.default
+    card: '#ffffff', // 卡片/面板
+    subtle: '#f6f8fa', // canvas.subtle（hover、次级填充）
+    border: '#d0d7de', // border.default
+    text1: '#1f2328', // fg.default
+    text2: '#57606a', // fg.muted
+    text3: '#656d76', // fg.subtle
+    fill1: '#f6f8fa',
+    hover: '#f3f4f6',
+    primary: '#0969da', // accent.fg
+    primaryHover: '#0a7ee8',
+    primaryPressed: '#0759c2',
+    info: '#0969da',
+    success: '#1a7f37',
+    warning: '#9a6700',
+    error: '#cf222e'
   },
   dark: {
-    bg: '#0a0e16',
-    card: '#141a27',
-    border: 'rgba(148,163,184,0.14)',
-    text1: '#e6edf6',
-    text2: '#94a3b8',
-    text3: '#64748b',
-    fill1: '#1c2434',
-    hover: '#1a2233',
-    primary: '#4c8dff',
-    primaryHover: '#6ba2ff',
-    primaryPressed: '#2f6bff',
-    info: '#4c8dff',
-    success: '#63e2b7',
-    warning: '#f0c060',
-    error: '#e88080'
+    bg: '#0d1117', // canvas.default
+    card: '#161b22', // canvas.subtle（GitHub 面板）
+    subtle: '#161b22',
+    border: '#30363d', // border.default
+    text1: '#e6edf3', // fg.default
+    text2: '#adbac7', // fg.muted 略调亮保可读
+    text3: '#7d8590', // fg.subtle
+    fill1: '#21262d', // 输入/按钮次级填充
+    hover: '#21262d',
+    primary: '#2f81f7', // accent
+    primaryHover: '#388bfd',
+    primaryPressed: '#1f6feb',
+    info: '#2f81f7',
+    success: '#3fb950',
+    warning: '#d29922',
+    error: '#f85149'
   }
 };
 
-/** NaiveUI themeOverrides（跟随 light/dark） */
+/** NaiveUI themeOverrides（跟随 light/dark，GitHub 风格） */
 export function naiveOverrides(dark) {
   const t = PALETTES[dark ? 'dark' : 'light'];
   return {
@@ -48,24 +50,32 @@ export function naiveOverrides(dark) {
       primaryColorPressed: t.primaryPressed,
       primaryColorSuppl: t.primaryHover,
       infoColor: t.info,
+      successColor: t.success,
+      warningColor: t.warning,
+      errorColor: t.error,
       bodyColor: t.bg,
       cardColor: t.card,
-      modalColor: t.card,
-      popoverColor: dark ? '#1b2333' : '#ffffff',
+      modalColor: dark ? '#161b22' : '#ffffff',
+      popoverColor: dark ? '#161b22' : '#ffffff',
       tableColor: t.card,
+      inputColor: dark ? '#0d1117' : '#ffffff',
+      inputColorDisabled: dark ? '#161b22' : '#f6f8fa',
       borderColor: t.border,
       dividerColor: t.border,
       textColorBase: t.text1,
       textColor1: t.text1,
       textColor2: t.text2,
       textColor3: t.text3,
+      borderRadius: '6px',
       fontSize: '14px'
     },
-    Card: { color: t.card, borderColor: t.border, colorModal: t.card }
+    Card: { color: t.card, borderColor: t.border, colorModal: t.card, borderRadius: '6px' },
+    Menu: { borderRadius: '6px' },
+    Button: { borderRadiusMedium: '6px', borderRadiusSmall: '6px' }
   };
 }
 
-/** 同步写入 CSS 变量（供自定义组件使用） */
+/** 同步写入 CSS 变量（供自定义组件使用，含小圆角令牌） */
 export function applyCssTokens(dark) {
   const t = PALETTES[dark ? 'dark' : 'light'];
   const root = document.documentElement;
@@ -74,13 +84,19 @@ export function applyCssTokens(dark) {
   const map = {
     '--eo-bg': t.bg,
     '--eo-card': t.card,
+    '--eo-subtle': t.subtle,
     '--eo-border': t.border,
     '--eo-text-1': t.text1,
     '--eo-text-2': t.text2,
     '--eo-text-3': t.text3,
     '--eo-fill-1': t.fill1,
     '--eo-hover': t.hover,
-    '--eo-primary': t.primary
+    '--eo-primary': t.primary,
+    '--eo-success': t.success,
+    '--eo-error': t.error,
+    '--eo-warning': t.warning,
+    '--eo-radius': '6px',
+    '--eo-radius-lg': '12px'
   };
   Object.entries(map).forEach(([k, v]) => root.style.setProperty(k, v));
 }

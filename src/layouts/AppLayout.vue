@@ -91,6 +91,7 @@
             @update:value="onInterval"
           />
           <n-select
+            v-if="zonePicker"
             v-model:value="dash.zoneId"
             :options="zoneOptions"
             size="small"
@@ -151,11 +152,6 @@
             <h2>{{ currentTab.label }}</h2>
             <p>{{ currentTab.desc }}</p>
           </div>
-          <div class="tab-hero-badge">
-            <span>{{ dash.rangeLabel }}</span>
-            <i></i>
-            <span>粒度 {{ intervalLabel }}</span>
-          </div>
         </div>
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -165,7 +161,7 @@
       </main>
 
       <footer class="app-footer">
-        {{ app.siteName }} · 前端 Vue3 + NaiveUI + ECharts · 后端边缘函数 (EdgeOne Pages Functions / Edge Functions)
+        {{ app.siteName }} · 前端 Vue3 + NaiveUI + ECharts · 后端 Node Functions (EdgeOne)
       </footer>
     </div>
   </div>
@@ -242,8 +238,9 @@ const autoOptions = [
   { label: '1 分钟', value: 60 },
   { label: '5 分钟', value: 300 }
 ];
-const intervalLabel = computed(() => INTERVALS.find((i) => i.key === dash.interval)?.label || '自动');
 const zoneOptions = computed(() => dash.zonesWithAll.map((z) => ({ label: z.name, value: z.id })));
+/** 站点下拉仅在真实站点数 >1 时显示（受限/单站点/未加载时隐藏） */
+const zonePicker = computed(() => dash.zones.length > 1);
 const lastTime = ref('--:--:--');
 
 function onRange() {
@@ -251,12 +248,15 @@ function onRange() {
     openCustomOnce();
     return;
   }
+  dash.persist();
   dash.bump();
 }
 function onInterval() {
+  dash.persist();
   dash.bump();
 }
 function onZone() {
+  dash.persist();
   dash.bump();
 }
 
@@ -374,7 +374,7 @@ watch(
   height: 36px;
   flex: 0 0 36px;
   object-fit: contain;
-  border-radius: 9px;
+  border-radius: 6px;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
 }
 .brand-text {
@@ -398,6 +398,9 @@ watch(
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+}
+.sider.collapsed .sider-menu {
+  padding: 0;
 }
 .sider-foot {
   padding: 10px 12px;
@@ -453,16 +456,17 @@ watch(
 .mode-tag { margin-right: 4px; }
 
 .controls-line {
+  --ctl-w: 170px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
-.ctl-range { width: 138px; }
-.ctl-interval { width: 116px; }
-.ctl-zone { width: 200px; }
-.ctl-auto { width: 120px; }
+/* 周期/粒度/站点/自动刷新 下拉统一等宽，保证选项显示完整 */
+.controls-line .n-select {
+  width: var(--ctl-w);
+}
 .ctl-refresh { margin-right: 2px; }
 .ctl-time {
   font-size: 12px;
@@ -498,22 +502,6 @@ watch(
   font-size: 13px;
   color: var(--eo-text-3);
 }
-.tab-hero-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--eo-text-2);
-  background: var(--eo-fill-1);
-  padding: 4px 12px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-.tab-hero-badge i {
-  width: 1px;
-  height: 12px;
-  background: var(--eo-border);
-}
 .app-footer {
   padding: 10px 18px;
   text-align: center;
@@ -535,12 +523,24 @@ watch(
   .app-header { padding: 8px 10px; }
   .content { padding: 12px 10px 4px; }
   .tab-hero { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .ctl-zone { width: 150px; }
-  .ctl-range { width: 126px; }
-  .ctl-interval { width: 104px; }
-  .ctl-auto { width: 108px; }
+  .controls-line { --ctl-w: 152px; }
   .ctl-time { display: none; }
   .mode-tag { display: none; }
-  .tab-hero-badge { display: none; }
+}
+</style>
+<!-- 折叠态图标精确居中（非 scoped：需覆盖 Naive 内联样式 padding/margin） -->
+<style>
+.sider.collapsed .n-menu-item-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.sider.collapsed .n-menu-item-content__icon {
+  margin: 0 !important;
+}
+.sider.collapsed .n-menu-item-content-header {
+  display: none !important;
 }
 </style>

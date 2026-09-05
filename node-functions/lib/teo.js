@@ -1,5 +1,5 @@
 /**
- * functions/lib/teo.js —— 腾讯云 EdgeOne 数据接口封装（TC3 签名直连）
+* node-functions/lib/teo.js —— 腾讯云 EdgeOne 数据接口封装（TC3 签名直连）
  * 基于 fetch + TC3 签名直连 EdgeOne 开放接口，可运行于边缘函数 / Pages Function / Node。
  *
  * 说明：真实模式需要环境变量 SECRET_ID / SECRET_KEY（仅需 EdgeOne 只读权限）。
@@ -10,8 +10,18 @@ import { requestTC3 } from './tc3.js';
 import { SOURCE, sourceOf, KIND } from './registry.js';
 
 /** 找到一次时序接口返回中指定指标的那一组 */
-function findMetricBlock(response, metricId) {
-  const dataArr = Array.isArray(response?.Data) ? response.Data : [response];
+function findMetricBlock(response, metricId, { listKey = 'Data' } = {}) {
+  // 注意：回源接口(DescribeTimingL7OriginPullData)把记录放在顶层 TimingDataRecords，
+  // 其余时序接口放在 Data 下。统一按 listKey 取值，再兼容兜底。
+  let arr = response?.[listKey];
+  if (!Array.isArray(arr)) {
+    arr = Array.isArray(response?.Data)
+      ? response.Data
+      : Array.isArray(response?.TimingDataRecords)
+        ? response.TimingDataRecords
+        : [response];
+  }
+  const dataArr = arr;
   for (const block of dataArr) {
     if (!block || typeof block !== 'object') continue;
     // 某些接口直接返回 TypeValue / Value 数组
@@ -117,8 +127,9 @@ export async function fetchMetrics(env, ids, opts) {
     const params = { ...buildBaseParams(opts), MetricNames: names };
     try {
       const res = await requestTC3(env, action, params);
+      const listKey = src === SOURCE.ORIGIN ? 'TimingDataRecords' : 'Data';
       for (const id of names) {
-        const block = findMetricBlock(res, id);
+        const block = findMetricBlock(res, id, { listKey });
         results[id] = block ? normalizeTimeBlock(block, id) : { id, kind: KIND.TIME, points: [], sum: 0, max: 0, avg: 0 };
       }
     } catch (e) {

@@ -1,7 +1,7 @@
 /**
  * EdgeOne Pages Functions —— API 统一入口
  *
- * 路由：/functions/api/[[default]].js
+ * 路由：/node-functions/api/[[default]].js
  * 匹配：/api/** （含 /api，不含其他前缀，未匹配则回落到 Pages 静态资源）
  *
  * 遵循 EdgeOne Pages Functions 规范（Function Handlers）：

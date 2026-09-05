@@ -191,9 +191,6 @@ const topProvPct = computed(() => pctOf(rankReqProvince.value, topOf(rankReqProv
 </script>
 
 <style scoped>
-.region-kpis .kpi-card {
-  --eo-kpi-bg: transparent;
-}
 .map-controls {
   display: flex;
   align-items: center;

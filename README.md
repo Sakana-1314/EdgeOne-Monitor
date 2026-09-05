@@ -8,7 +8,7 @@
 - 登录鉴权：账号 `admin`，密码来自 `ADMIN_PASSWORD`；登录签发 7 天 JWT（`JWT_SECRET`）
 - 桌面端左侧 Tab、移动端响应式；深色 / 浅色模式
 - 时间范围（含自定义）、数据粒度、站点选择、自动刷新、环比
-- 访问限制：可用 `ALLOWED_ZONE_IDS` / `ALLOWED_DOMAINS` 限定可监控的站点与展示的域名
+- 访问限制：可用 `ALLOWED_ZONE_IDS` 限定可监控的站点；站点受限/仅一个站点时自动隐藏站点下拉
 
 ## 配置
 
@@ -20,8 +20,7 @@
 | `JWT_SECRET` | 是 | JWT 签名密钥（`openssl rand -hex 32`） |
 | `TOKEN_TTL_DAYS` | 否 | Token 有效期天数，默认 7 |
 | `SECRET_ID` / `SECRET_KEY` | 是 | 腾讯云密钥（`QcloudTEOReadOnlyaccess` 只读权限）；缺失时数据接口返回 503 |
-| `ALLOWED_ZONE_IDS` | 否 | 允许监控的站点 ID（ZoneId），逗号分隔；空 = 全部。未授权站点返回 403 |
-| `ALLOWED_DOMAINS` | 否 | 允许展示的域名（主机名），逗号分隔；子域自动继承父域条目；空 = 全部。作用于域名/Referer 等带主机名维度，未授权项聚合隐藏 |
+| `ALLOWED_ZONE_IDS` | 否 | 允许监控的站点 ID（ZoneId），逗号分隔；空 = 全部。未授权站点返回 403；受限/单站点时前端自动隐藏站点下拉 |
 | `TEO_ENDPOINT` / `TEO_REGION` | 否 | 默认 `teo.tencentcloudapi.com` / `ap-guangzhou` |
 | `SITE_NAME` / `SITE_ICON` | 否 | 站点标题 / 图标 |
 
@@ -45,7 +44,7 @@ pnpm build && pnpm serve # 单端口预览 http://127.0.0.1:8088
 
 ```
 node-functions/api/[[default]].js  Node Functions 入口（onRequestGet/Post/Options）
-node-functions/lib/                路由 / JWT / TC3 签名 / EdgeOne 接口封装 / 白名单
+node-functions/lib/                路由 / JWT / TC3 签名 / EdgeOne 接口封装 / 站点白名单
 src/                               前端源码
 public/                            静态资源（logo、ECharts 地图 geojson）
 server/ scripts/                   本地运行

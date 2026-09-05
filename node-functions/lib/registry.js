@@ -1,5 +1,5 @@
 /**
- * functions/lib/registry.js
+* node-functions/lib/registry.js
  * 指标注册表：描述每个指标的类型(kind)与单位(unit)，并把指标路由到对应的腾讯云接口。
  *
  * kind: 'time'  时序指标（趋势/求和） | 'top'  排行指标（{key,value} 列表）

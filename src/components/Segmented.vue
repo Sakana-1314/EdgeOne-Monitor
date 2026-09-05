@@ -29,7 +29,7 @@ defineEmits(['update:modelValue']);
   gap: 2px;
   background: var(--eo-fill-1);
   border: 1px solid var(--eo-border);
-  border-radius: 8px;
+  border-radius: var(--eo-radius, 6px);
 }
 .seg-item {
   appearance: none;
@@ -50,6 +50,6 @@ defineEmits(['update:modelValue']);
 .seg-item.active {
   color: #fff;
   background: var(--eo-primary);
-  box-shadow: 0 2px 6px rgba(47, 107, 255, 0.35);
+  box-shadow: 0 1px 3px rgba(1, 4, 9, 0.25);
 }
 </style>

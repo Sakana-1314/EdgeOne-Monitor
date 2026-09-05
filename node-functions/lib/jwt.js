@@ -1,5 +1,5 @@
 /**
- * functions/lib/jwt.js
+* node-functions/lib/jwt.js
  * HS256 JWT 签发 / 校验，零依赖，基于 WebCrypto。
  */
 

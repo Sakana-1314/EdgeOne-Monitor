@@ -4,18 +4,18 @@
 export function chartPalette(dark) {
   return {
     dark,
-    text: dark ? '#cbd5e1' : '#334155',
-    subText: dark ? '#94a3b8' : '#64748b',
-    axisLine: dark ? '#475569' : '#cbd5e1',
-    splitLine: dark ? '#293548' : '#e9eef5',
-    tooltipBg: dark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.96)',
-    tooltipBorder: dark ? '#334155' : '#e2e8f0',
-    legend: dark ? '#cbd5e1' : '#334155',
-    mapEmpty: dark ? '#1b2436' : '#eef2f7',
-    mapBorder: dark ? '#334155' : '#cbd5e1',
-    mapEmphasis: dark ? '#0f172a' : '#ffffff',
-    visualMin: dark ? '#17304d' : '#e0f0ff',
-    visualMax: dark ? '#38bdf8' : '#1d4ed8'
+    text: dark ? '#adbac7' : '#57606a',
+    subText: dark ? '#7d8590' : '#656d76',
+    axisLine: dark ? '#30363d' : '#d0d7de',
+    splitLine: dark ? '#21262d' : '#d8dee4',
+    tooltipBg: dark ? 'rgba(22,27,34,0.96)' : 'rgba(255,255,255,0.98)',
+    tooltipBorder: dark ? '#30363d' : '#d0d7de',
+    legend: dark ? '#adbac7' : '#57606a',
+    mapEmpty: dark ? '#21262d' : '#eaeef2',
+    mapBorder: dark ? '#30363d' : '#d0d7de',
+    mapEmphasis: dark ? '#161b22' : '#ffffff',
+    visualMin: dark ? '#162c47' : '#d6e6ff',
+    visualMax: dark ? '#2f81f7' : '#0969da'
   };
 }
 

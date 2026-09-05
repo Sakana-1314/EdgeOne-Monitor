@@ -120,8 +120,8 @@ onMounted(() => {
   justify-content: center;
   padding: 24px;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(47, 107, 255, 0.18), transparent 60%),
-    radial-gradient(900px 500px at 110% 110%, rgba(124, 92, 255, 0.16), transparent 55%),
+    radial-gradient(1200px 500px at 10% -10%, rgba(47, 129, 247, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(88, 166, 255, 0.12), transparent 55%),
     var(--eo-bg);
 }
 .login-card {
@@ -130,15 +130,17 @@ onMounted(() => {
   min-height: 520px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-radius: 18px;
+  border-radius: 12px;
   overflow: hidden;
   background: var(--eo-card);
   border: 1px solid var(--eo-border);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 60px rgba(1, 4, 9, 0.2);
 }
 .login-aside {
-  background: linear-gradient(160deg, #101b33, #131233 55%, #1b1033);
-  color: #e6edf6;
+  background:
+    radial-gradient(420px 260px at 15% 0%, rgba(47, 129, 247, 0.24), transparent 60%),
+    linear-gradient(160deg, #0d1117, #161b22 58%, #101d33);
+  color: #e6edf3;
   padding: 36px 32px;
   display: flex;
   flex-direction: column;
@@ -151,7 +153,7 @@ onMounted(() => {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(47, 107, 255, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(47, 129, 247, 0.35), transparent 70%);
   right: -80px;
   bottom: -80px;
 }
@@ -165,8 +167,8 @@ onMounted(() => {
   height: 46px;
   flex: 0 0 46px;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0, 30, 120, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(1, 4, 9, 0.4);
 }
 .login-name { font-size: 17px; font-weight: 700; }
 .login-slogan { font-size: 12px; opacity: 0.7; }
@@ -187,7 +189,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
 }
-.login-feats .n-icon { color: #7cffc4; font-size: 16px; }
+.login-feats .n-icon { color: #3fb950; font-size: 16px; }
 .login-foot {
   margin-top: auto;
   font-size: 12px;

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a0e16" />
+    <meta name="theme-color" content="#0d1117" />
     <title>EdgeOne 监控大屏</title>
     <script>
       // 主题预置，避免深色模式白屏闪烁
@@ -15,15 +15,18 @@
           var root = document.documentElement;
           root.classList.toggle('dark', dark);
           root.setAttribute('data-theme', dark ? 'dark' : 'light');
-          root.style.setProperty('--eo-bg', dark ? '#0a0e16' : '#eef1f6');
-          root.style.setProperty('--eo-card', dark ? '#141a27' : '#ffffff');
-          root.style.setProperty('--eo-border', dark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.08)');
-          root.style.setProperty('--eo-text-1', dark ? '#e6edf6' : '#111827');
-          root.style.setProperty('--eo-text-2', dark ? '#94a3b8' : '#4b5563');
-          root.style.setProperty('--eo-text-3', dark ? '#64748b' : '#9aa3af');
-          root.style.setProperty('--eo-fill-1', dark ? '#1c2434' : '#f1f5f9');
-          root.style.setProperty('--eo-primary', dark ? '#4c8dff' : '#2f6bff');
-          root.style.background = dark ? '#0a0e16' : '#eef1f6';
+          root.style.setProperty('--eo-bg', dark ? '#0d1117' : '#ffffff');
+          root.style.setProperty('--eo-card', dark ? '#161b22' : '#ffffff');
+          root.style.setProperty('--eo-subtle', dark ? '#161b22' : '#f6f8fa');
+          root.style.setProperty('--eo-border', dark ? '#30363d' : '#d0d7de');
+          root.style.setProperty('--eo-text-1', dark ? '#e6edf3' : '#1f2328');
+          root.style.setProperty('--eo-text-2', dark ? '#adbac7' : '#57606a');
+          root.style.setProperty('--eo-text-3', dark ? '#7d8590' : '#656d76');
+          root.style.setProperty('--eo-fill-1', dark ? '#21262d' : '#f6f8fa');
+          root.style.setProperty('--eo-primary', dark ? '#2f81f7' : '#0969da');
+          root.style.setProperty('--eo-radius', '6px');
+          root.style.setProperty('--eo-radius-lg', '12px');
+          root.style.background = dark ? '#0d1117' : '#ffffff';
         } catch (e) {}
       })();
     </script>
