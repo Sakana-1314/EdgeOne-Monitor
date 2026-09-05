@@ -3,7 +3,7 @@
     <div class="login-card">
       <div class="login-aside">
         <div class="login-logo">
-          <span class="brand-logo"><n-icon :component="RocketOutline" /></span>
+          <img class="brand-logo-img" src="/logo.png" alt="EdgeOne" />
           <div>
             <div class="login-name">{{ app.siteName || 'EdgeOne 监控大屏' }}</div>
             <div class="login-slogan">边缘加速 · 实时可观测</div>
@@ -69,9 +69,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
-import {
-  RocketOutline, PersonOutline, LockClosedOutline, CheckmarkCircleOutline
-} from '@vicons/ionicons5';
+import { PersonOutline, LockClosedOutline, CheckmarkCircleOutline } from '@vicons/ionicons5';
 import { useAppStore } from '../store/app.js';
 
 const router = useRouter();
@@ -162,17 +160,13 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
 }
-.brand-logo {
-  width: 42px;
-  height: 42px;
+.brand-logo-img {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  object-fit: contain;
   border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: #fff;
-  background: linear-gradient(135deg, #2f6bff, #7c5cff);
-  box-shadow: 0 6px 16px rgba(47, 107, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 30, 120, 0.35);
 }
 .login-name { font-size: 17px; font-weight: 700; }
 .login-slogan { font-size: 12px; opacity: 0.7; }

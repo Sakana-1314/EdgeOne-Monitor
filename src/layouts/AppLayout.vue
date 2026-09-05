@@ -3,7 +3,7 @@
     <!-- 桌面端：左侧 Tab 栏 -->
     <aside v-if="!isMobile" class="sider" :class="{ collapsed }">
       <div class="brand" :class="{ collapsed }" @click="router.push('/region')">
-        <span class="brand-logo"><n-icon :component="LogoEdgeoneIcon" /></span>
+        <img class="brand-logo-img" src="/logo.png" alt="logo" />
         <transition name="fade">
           <div v-if="!collapsed" class="brand-text">
             <span class="brand-title">{{ app.siteName }}</span>
@@ -32,7 +32,7 @@
     <!-- 移动端抽屉导航 -->
     <n-drawer v-model:show="drawerOpen" placement="left" :width="268">
       <div class="drawer-brand">
-        <span class="brand-logo"><n-icon :component="LogoEdgeoneIcon" /></span>
+        <img class="brand-logo-img" src="/logo.png" alt="logo" />
         <div class="brand-text">
           <span class="brand-title">{{ app.siteName }}</span>
           <span class="brand-sub">EdgeOne 实时监控</span>
@@ -178,7 +178,7 @@ import { NIcon, useMessage } from 'naive-ui';
 import {
   EarthOutline, PulseOutline, StatsChartOutline, GitNetworkOutline, ShieldCheckmarkOutline,
   ConstructOutline, AlbumsOutline, TrophyOutline, MenuOutline, SunnyOutline, MoonOutline,
-  RefreshOutline, PersonCircleOutline, LogOutOutline, RocketOutline
+  RefreshOutline, PersonCircleOutline, LogOutOutline
 } from '@vicons/ionicons5';
 import { useAppStore } from '../store/app.js';
 import { useDashboardStore, RANGES, INTERVALS } from '../store/dashboard.js';
@@ -189,8 +189,6 @@ const route = useRoute();
 const app = useAppStore();
 const dash = useDashboardStore();
 const message = useMessage();
-
-const LogoEdgeoneIcon = RocketOutline;
 
 /* ---------- 响应式 ---------- */
 const isMobile = ref(false);
@@ -371,18 +369,13 @@ watch(
   justify-content: center;
   padding: 14px 0;
 }
-.brand-logo {
+.brand-logo-img {
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 20px;
-  background: linear-gradient(135deg, #2f6bff, #7c5cff);
-  box-shadow: 0 4px 12px rgba(47, 107, 255, 0.35);
+  object-fit: contain;
+  border-radius: 9px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
 }
 .brand-text {
   display: flex;
