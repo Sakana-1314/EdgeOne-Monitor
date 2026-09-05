@@ -18,7 +18,6 @@ export const useAppStore = defineStore('app', {
     siteIcon: '',
     version: '',
     configured: false,
-    credentialHint: '',
     token: getToken(),
     user: null,
     booted: false,
@@ -65,7 +64,6 @@ export const useAppStore = defineStore('app', {
         this.siteIcon = data.siteIcon || '';
         this.version = data.version;
         this.configured = Boolean(data.configured);
-        this.credentialHint = data.credentialHint || '';
       } catch (e) {
         this.bootError = e.message;
       } finally {

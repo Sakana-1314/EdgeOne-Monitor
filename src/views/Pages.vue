@@ -31,7 +31,7 @@
         <div class="progress-desc">
           距本月结束还可用构建次数约
           <b>{{ buildData ? Math.max(0, buildData.monthlyBuilds) : 0 }}</b>
-          次（具体配额以 EdgeOne 控制台为准）
+          次（实际配额以平台为准）
         </div>
       </div>
     </PanelCard>

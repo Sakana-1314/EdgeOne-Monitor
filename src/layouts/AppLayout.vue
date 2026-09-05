@@ -47,12 +47,6 @@
             <span v-else class="h-title">{{ currentTab?.title || '' }}</span>
           </div>
           <div class="h-right">
-            <n-tooltip v-if="!app.configured">
-              <template #trigger>
-                <n-tag class="mode-tag" size="small" :bordered="false" type="warning">未配置凭据</n-tag>
-              </template>
-              {{ app.credentialHint }}
-            </n-tooltip>
             <n-tooltip>
               <template #trigger>
                 <n-button quaternary circle @click="app.toggleTheme()">
@@ -130,17 +124,6 @@
       </n-modal>
 
       <main class="content">
-        <n-alert
-          v-if="app.booted && !app.configured"
-          type="warning"
-          :show-icon="true"
-          style="margin-bottom: 12px"
-          closable
-        >
-          <template #default>
-            尚未配置腾讯云凭据（{{ app.credentialHint || 'SECRET_ID / SECRET_KEY' }}）。配置后刷新即可加载真实数据。
-          </template>
-        </n-alert>
         <div class="tab-hero" v-if="currentTab">
           <div class="tab-hero-text">
             <h2>{{ currentTab.label }}</h2>

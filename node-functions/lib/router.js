@@ -15,7 +15,6 @@ import * as teo from './teo.js';
 
 const VERSION = '2.2.0';
 const DEFAULT_TTL_DAYS = 7;
-const CRED_ENV_HINT = '请在 EdgeOne Pages 项目「环境变量」中配置 SECRET_ID / SECRET_KEY（需 QcloudTEOReadOnlyaccess 只读权限）';
 
 function cfg(env) {
   const get = (k, d) => {
@@ -145,7 +144,6 @@ function handleConfig(env) {
       siteIcon: c.siteIcon,
       version: VERSION,
       configured: c.configured,
-      credentialHint: c.configured ? '' : CRED_ENV_HINT,
       time: formatUTCDate()
     }
   });
@@ -161,7 +159,7 @@ async function handleLogin(env, request) {
 
   if (!c.adminPassword || !c.jwtSecret) {
     return json(
-      { code: 503, message: '服务未配置完整：缺少 ADMIN_PASSWORD 或 JWT_SECRET（请在 Pages 环境变量中配置）' },
+      { code: 503, message: '服务初始化未完成，请联系管理员' },
       503
     );
   }
@@ -187,16 +185,13 @@ async function handleLogin(env, request) {
   });
 }
 
-/** 依赖腾讯云凭据的接口统一错误返回 */
+/** 依赖腾讯云凭据的接口统一错误返回（对外不暴露部署细节） */
 function noCredential() {
-  return json({ code: 503, message: '未配置腾讯云凭据：' + CRED_ENV_HINT, hint: CRED_ENV_HINT }, 503);
+  return json({ code: 503, message: '数据服务暂未就绪，请稍后重试' }, 503);
 }
 
-function forbiddenZone(zoneId) {
-  return json(
-    { code: 403, message: `站点 ${zoneId} 不在 ALLOWED_ZONE_IDS 白名单内`, hint: '请检查 ALLOWED_ZONE_IDS 环境变量' },
-    403
-  );
+function forbiddenZone() {
+  return json({ code: 403, message: '该站点不在允许监控的范围内', hint: '如需开通请联系管理员' }, 403);
 }
 
 /**

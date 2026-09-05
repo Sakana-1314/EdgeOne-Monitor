@@ -21,7 +21,7 @@
       <div class="login-form-side">
         <div class="form-head">
           <h1>管理员登录</h1>
-          <p>账号固定 <b>admin</b>，密码由环境变量 <code>ADMIN_PASSWORD</code> 指定</p>
+          <p>请输入管理员账号密码登录</p>
         </div>
 
         <n-alert v-if="error" type="error" :show-icon="false" closable @close="error = ''" style="margin-bottom: 12px">
@@ -58,7 +58,7 @@
         </n-form>
 
         <div class="login-tip">
-          登录态有效期 7 天（JWT）· 密码由环境变量 <code>ADMIN_PASSWORD</code> 指定
+          登录态有效期 7 天 · 支持深色 / 浅色模式
         </div>
       </div>
     </div>
